@@ -16,11 +16,11 @@ import org.springframework.web.client.RestTemplate;
 public class ApplicationConfig {
     private final UserRepository userRepository;
 
-    @Bean
-    public UserDetailsService userDetailsService() {
-        return username -> userRepository.findByEmailAddress(username)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-    }
+//    @Bean
+//    public UserDetailsService userDetailsService() {
+//        return username -> (org.springframework.security.core.userdetails.UserDetails) userRepository.findByEmailAddress(username)
+//                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+//    }
 
     @Bean
     public RestTemplate restTemplate() {

@@ -1,5 +1,6 @@
 package com.theanh.iamservice.IAM_Service_2.Jwts;
 
+import com.theanh.iamservice.IAM_Service_2.Entities.UserDetails.CustomUserDetails;
 import com.theanh.iamservice.IAM_Service_2.Exception.ErrorCode;
 import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.Blacklist.JwtBlacklistService;
 import jakarta.servlet.FilterChain;
@@ -53,12 +54,12 @@ public class JwtFilter extends OncePerRequestFilter {
             return;
         }
 
-        UserDetails userDetails = this.userDetailsService.loadUserByUsername(email);
-        if (isTokenValid(token, userDetails)) {
-            setAuthentication(userDetails, request);
+        CustomUserDetails customUserDetails = (CustomUserDetails) this.userDetailsService.loadUserByUsername(email);
+        if (isTokenValid(token, customUserDetails)) {
+            setAuthentication(customUserDetails, request);
         }
 
-//        logSecurityContextDetails();
+        logSecurityContextDetails();
         filterChain.doFilter(request, response);
     }
 
@@ -78,19 +79,39 @@ public class JwtFilter extends OncePerRequestFilter {
         return email;
     }
 
-    private boolean isTokenValid(String token, UserDetails userDetails) {
+    private boolean isTokenValid(String token, CustomUserDetails customUserDetails) {
         if (isKeycloakEnabled) {
-            return jwtUtil.isKeycloakTokenValid(token, userDetails);
+            return jwtUtil.isKeycloakTokenValid(token, customUserDetails);
         } else {
-            return jwtUtil.isSystemTokenValid(token, userDetails);
+            return jwtUtil.isSystemTokenValid(token, customUserDetails);
         }
     }
 
-    private void setAuthentication(UserDetails userDetails, HttpServletRequest request) {
+    private void setAuthentication(CustomUserDetails customUserDetails, HttpServletRequest request) {
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                userDetails, null, userDetails.getAuthorities()
+                customUserDetails, null, customUserDetails.getAuthorities()
         );
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
+
+    private void logSecurityContextDetails() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            System.out.println("No authentication details found in SecurityContext.");
+            return;
+        }
+
+        System.out.println("Authentication Details:");
+        System.out.println("Principal: " + authentication.getPrincipal());
+        System.out.println("Credentials: " + authentication.getCredentials());
+        System.out.println("Authorities: ");
+        authentication.getAuthorities().forEach(authority ->
+                System.out.println(" - " + authority.getAuthority())
+        );
+        System.out.println("Details: " + authentication.getDetails());
+        System.out.println("Name: " + authentication.getName());
+        System.out.println("Authenticated: " + authentication.isAuthenticated());
+    }
+
 }

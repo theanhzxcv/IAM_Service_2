@@ -1,4 +1,4 @@
-package com.theanh.iamservice.IAM_Service_2.Mapper;
+package com.theanh.iamservice.IAM_Service_2.Mappers;
 
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Admin.RoleCreationRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Admin.PermissionResponse;

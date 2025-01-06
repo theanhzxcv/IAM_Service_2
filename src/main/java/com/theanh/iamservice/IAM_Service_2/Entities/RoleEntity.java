@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -17,6 +18,14 @@ public class RoleEntity implements GrantedAuthority {
     @Id
     @Column(name = "role_name")
     private String name;
+
+    private boolean isRoot = false;
+
+    private String createdBy;
+    private LocalDateTime createdAt;
+
+    private String lastModifiedBy;
+    private LocalDateTime lastModifiedAt;
 
     private boolean isDeleted = false;
 

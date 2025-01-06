@@ -13,5 +13,6 @@ import java.util.List;
 @AllArgsConstructor
 public class RoleUpdateRequest {
     private List<String> permissions;
-    private boolean isDeleted;
+    private String isRoot;
+    private String isDeleted;
 }

@@ -1,5 +1,7 @@
 package com.theanh.iamservice.IAM_Service_2.Jwts;
 
+import com.theanh.iamservice.IAM_Service_2.Entities.UserDetails.CustomUserDetails;
+import com.theanh.iamservice.IAM_Service_2.Entities.UserEntity;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -24,10 +26,10 @@ public class JwtUtil {
     private final static long ACCESS_TOKEN_EXPIRATION = 1000 * 60 * 30;
     private final static long REFRESH_TOKEN_EXPIRATION = 1000 * 60 * 60 * 5;
 
-    public String generateToken(UserDetails userDetails, long expirationTime) throws Exception {
+    public String generateToken(UserEntity userEntity, long expirationTime) throws Exception {
         PrivateKey privateKey = rsaKeysUtil.getPrivateKey();
         return Jwts.builder()
-                .setSubject(userDetails.getUsername())
+                .setSubject(userEntity.getEmailAddress())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
                 .setId(UUID.randomUUID().toString())
@@ -36,12 +38,12 @@ public class JwtUtil {
                 .compact();
     }
 
-    public String generateAccessToken(UserDetails userDetails) throws Exception {
-        return generateToken(userDetails, ACCESS_TOKEN_EXPIRATION);
+    public String generateAccessToken(UserEntity userEntity) throws Exception {
+        return generateToken(userEntity, ACCESS_TOKEN_EXPIRATION);
     }
 
-    public String generateRefreshToken(UserDetails userDetails) throws Exception {
-        return generateToken(userDetails, REFRESH_TOKEN_EXPIRATION);
+    public String generateRefreshToken(UserEntity userEntity) throws Exception {
+        return generateToken(userEntity, REFRESH_TOKEN_EXPIRATION);
     }
 
     public Claims extractClaims(String token) {
@@ -110,13 +112,13 @@ public class JwtUtil {
         }
     }
 
-    public boolean isSystemTokenValid(String token, UserDetails userDetails) {
+    public boolean isSystemTokenValid(String token, CustomUserDetails customUserDetails) {
         final String email = extractEmailFrSystemJwt(token);
-        return (email.equals(userDetails.getUsername()) && !isSystemTokenExpired(token));
+        return (email.equals(customUserDetails.getUsername()) && !isSystemTokenExpired(token));
     }
 
-    public boolean isKeycloakTokenValid(String token, UserDetails userDetails) {
+    public boolean isKeycloakTokenValid(String token, CustomUserDetails customUserDetails) {
         final String email = extractEmailFrKeycloakJwt(token);
-        return (email.equals(userDetails.getUsername()) && !isKeycloakTokenExpired(token));
+        return (email.equals(customUserDetails.getUsername()) && !isKeycloakTokenExpired(token));
     }
 }

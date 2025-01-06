@@ -11,6 +11,7 @@ import java.util.List;
 @AllArgsConstructor
 public class RoleResponse {
     private String name;
+    private boolean isRoot;
     private boolean isDeleted;
     List<PermissionResponse> permissions;
 }

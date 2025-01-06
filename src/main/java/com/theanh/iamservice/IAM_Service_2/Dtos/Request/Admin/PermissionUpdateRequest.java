@@ -12,5 +12,5 @@ import lombok.Setter;
 public class PermissionUpdateRequest {
     private String resource;
     private String scope;
-    private boolean isDeleted;
+    private String isDeleted;
 }

@@ -11,8 +11,8 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management.UserResponse
 import com.theanh.iamservice.IAM_Service_2.Entities.*;
 import com.theanh.iamservice.IAM_Service_2.Exception.AppException;
 import com.theanh.iamservice.IAM_Service_2.Exception.ErrorCode;
-import com.theanh.iamservice.IAM_Service_2.Mapper.RoleMapper;
-import com.theanh.iamservice.IAM_Service_2.Mapper.UserMapper;
+import com.theanh.iamservice.IAM_Service_2.Mappers.RoleMapper;
+import com.theanh.iamservice.IAM_Service_2.Mappers.UserMapper;
 import com.theanh.iamservice.IAM_Service_2.Repositories.*;
 import com.theanh.iamservice.IAM_Service_2.Repositories.RepositoryImp.UserRepositoryImp;
 import com.theanh.iamservice.IAM_Service_2.Services.IManagementService;
@@ -26,7 +26,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -169,8 +168,12 @@ public class ManagementServiceImp implements IManagementService {
 
     private void updateUserEntity(UserEntity userEntity, UserUpdateRequest userUpdateRequest) {
         userEntity = userMapper.toUserEntity(userUpdateRequest);
-        userEntity.setBanned(false);
-        userEntity.setDeleted(false);
+        if (userUpdateRequest.getIsBanned().equals("false")){
+            userEntity.setBanned(false);
+        }
+        if (userUpdateRequest.getIsDeleted().equals("false")){
+            userEntity.setDeleted(false);
+        }
 
         String currentAuditor = auditorAwareImp.getCurrentAuditor().orElse("Unknown");
         userEntity.setLastModifiedBy(currentAuditor);

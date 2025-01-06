@@ -20,8 +20,8 @@ public class UserUpdateRequest {
     private String phoneNumber;
     private LocalDate dateOfBirth;
 
-//    private boolean isDeleted;
-//    private boolean isBanned;
+    private String isDeleted;
+    private String isBanned;
 
     private List<String> roles;
 }

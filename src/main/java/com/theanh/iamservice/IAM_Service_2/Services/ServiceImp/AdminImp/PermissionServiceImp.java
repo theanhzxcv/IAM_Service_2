@@ -1,10 +1,13 @@
-package com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.Admin;
+package com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.AdminImp;
 
+import com.theanh.iamservice.IAM_Service_2.AuditorAware.AuditorAwareImp;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Admin.PermissionCreationRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Admin.PermissionUpdateRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Admin.PermissionResponse;
 import com.theanh.iamservice.IAM_Service_2.Entities.PermissionEntity;
-import com.theanh.iamservice.IAM_Service_2.Mapper.PermissionMapper;
+import com.theanh.iamservice.IAM_Service_2.Exception.AppException;
+import com.theanh.iamservice.IAM_Service_2.Exception.ErrorCode;
+import com.theanh.iamservice.IAM_Service_2.Mappers.PermissionMapper;
 import com.theanh.iamservice.IAM_Service_2.Repositories.PermissionRepository;
 import com.theanh.iamservice.IAM_Service_2.Services.IPermissionService;
 import lombok.RequiredArgsConstructor;
@@ -13,10 +16,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class PermissionServiceImp implements IPermissionService {
 
+    private final AuditorAwareImp auditorAwareImp;
     private final PermissionMapper permissionMapper;
     private final PermissionRepository permissionRepository;
 
@@ -27,8 +33,15 @@ public class PermissionServiceImp implements IPermissionService {
             throw new RuntimeException("Permission exists");
         }
 
-        PermissionEntity permissionEntity = permissionRepository.save(
-                permissionMapper.toPermissionEntity(permissionCreationRequest));
+        PermissionEntity permissionEntity = permissionMapper.toPermissionEntity(permissionCreationRequest);
+        String currentAuditor = auditorAwareImp.getCurrentAuditor().orElse("Unknown");
+
+        permissionEntity.setCreatedBy(currentAuditor);
+        permissionEntity.setCreatedAt(LocalDateTime.now());
+
+        permissionEntity.setLastModifiedBy(currentAuditor);
+        permissionEntity.setLastModifiedAt(LocalDateTime.now());
+        permissionRepository.save(permissionEntity);
 
         return permissionMapper.toPermissionResponse(permissionEntity);
     }
@@ -38,14 +51,19 @@ public class PermissionServiceImp implements IPermissionService {
         PermissionEntity permissionEntity = permissionRepository.findByName(name)
                 .orElseThrow(() -> new RuntimeException("Not found"));
 
-        if (permissionUpdateRequest.getResource() != null) {
-            permissionEntity.setResource(permissionUpdateRequest.getResource());
-        }
-        if (permissionUpdateRequest.getScope() != null) {
-            permissionEntity.setScope(permissionUpdateRequest.getScope());
+        if (permissionUpdateRequest == null) {
+            throw new AppException(ErrorCode.FIELD_MISSING);
         }
 
-        permissionEntity.setScope(permissionUpdateRequest.getScope());
+        permissionEntity = permissionMapper.toPermissionEntity(permissionUpdateRequest);
+        if (permissionUpdateRequest.getIsDeleted().equals("false")) {
+            permissionEntity.setDeleted(false);
+        }
+        String currentAuditor = auditorAwareImp.getCurrentAuditor().orElse("Unknown");
+
+        permissionEntity.setLastModifiedBy(currentAuditor);
+        permissionEntity.setLastModifiedAt(LocalDateTime.now());
+
         PermissionEntity updatePermission = permissionRepository.save(permissionEntity);
 
         return permissionMapper.toPermissionResponse(updatePermission);

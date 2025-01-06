@@ -1,5 +1,6 @@
-package com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.Admin;
+package com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.AdminImp;
 
+import com.theanh.iamservice.IAM_Service_2.AuditorAware.AuditorAwareImp;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Admin.RoleCreationRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Admin.RoleUpdateRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Admin.PermissionResponse;
@@ -7,8 +8,8 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Admin.RoleResponse;
 import com.theanh.iamservice.IAM_Service_2.Entities.PermissionEntity;
 import com.theanh.iamservice.IAM_Service_2.Entities.RoleEntity;
 import com.theanh.iamservice.IAM_Service_2.Entities.RolePermission;
-import com.theanh.iamservice.IAM_Service_2.Mapper.PermissionMapper;
-import com.theanh.iamservice.IAM_Service_2.Mapper.RoleMapper;
+import com.theanh.iamservice.IAM_Service_2.Mappers.PermissionMapper;
+import com.theanh.iamservice.IAM_Service_2.Mappers.RoleMapper;
 import com.theanh.iamservice.IAM_Service_2.Repositories.PermissionRepository;
 import com.theanh.iamservice.IAM_Service_2.Repositories.RolePermissionRepository;
 import com.theanh.iamservice.IAM_Service_2.Repositories.RoleRepository;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,23 +30,50 @@ import java.util.stream.Collectors;
 public class RoleServiceImp implements IRoleService {
     private final RoleMapper roleMapper;
     private final RoleRepository roleRepository;
+    private final AuditorAwareImp auditorAwareImp;
     private final PermissionMapper permissionMapper;
     private final PermissionRepository permissionRepository;
     private final RolePermissionRepository rolePermissionRepository;
 
     @Override
     public RoleResponse createRole(RoleCreationRequest roleCreationRequest) {
-        if (roleRepository.findByName(roleCreationRequest.getName()).isPresent()) {
-            throw new RuntimeException("Role already exists");
-        }
+        validateRoleDoesNotExist(roleCreationRequest.getName());
 
-        RoleEntity roleEntity = roleMapper.tpRoleEntity(roleCreationRequest);
+        RoleEntity roleEntity = buildRoleEntity(roleCreationRequest);
         roleRepository.save(roleEntity);
 
-        List<PermissionEntity> permissions =
-                permissionRepository.findAllById(roleCreationRequest.getPermissions());
+        List<PermissionEntity> validPermissions = fetchAndValidatePermissions(roleCreationRequest.getPermissions());
+        saveRolePermissions(roleCreationRequest.getName(), validPermissions);
 
-        if (permissions.size() != roleCreationRequest.getPermissions().size()) {
+        return buildRoleResponse(roleEntity, validPermissions);
+    }
+
+    private void validateRoleDoesNotExist(String roleName) {
+        if (roleRepository.findByName(roleName).isPresent()) {
+            throw new RuntimeException("Role already exists");
+        }
+    }
+
+    private RoleEntity buildRoleEntity(RoleCreationRequest roleCreationRequest) {
+        RoleEntity roleEntity = roleMapper.tpRoleEntity(roleCreationRequest);
+
+        if (roleCreationRequest.getName().equalsIgnoreCase("ADMIN")) {
+            roleEntity.setRoot(true);
+        }
+
+        String currentAuditor = auditorAwareImp.getCurrentAuditor().orElse("Unknown");
+        roleEntity.setCreatedBy(currentAuditor);
+        roleEntity.setCreatedAt(LocalDateTime.now());
+        roleEntity.setLastModifiedBy(currentAuditor);
+        roleEntity.setLastModifiedAt(LocalDateTime.now());
+
+        return roleEntity;
+    }
+
+    private List<PermissionEntity> fetchAndValidatePermissions(List<String> permissionNames) {
+        List<PermissionEntity> permissions = permissionRepository.findAllById(permissionNames);
+
+        if (permissions.size() != permissionNames.size()) {
             throw new RuntimeException("Some permissions do not exist");
         }
 
@@ -56,15 +85,21 @@ public class RoleServiceImp implements IRoleService {
             throw new RuntimeException("Some permissions are marked as deleted");
         }
 
+        return validPermissions;
+    }
+
+    private void saveRolePermissions(String roleName, List<PermissionEntity> validPermissions) {
         List<RolePermission> rolePermissions = validPermissions.stream()
                 .map(permission -> RolePermission.builder()
-                        .roleName(roleCreationRequest.getName())
+                        .roleName(roleName)
                         .permissionName(permission.getName())
                         .build())
                 .collect(Collectors.toList());
 
         rolePermissionRepository.saveAll(rolePermissions);
+    }
 
+    private RoleResponse buildRoleResponse(RoleEntity roleEntity, List<PermissionEntity> validPermissions) {
         List<PermissionResponse> permissionResponses = validPermissions.stream()
                 .map(permissionMapper::toPermissionResponse)
                 .collect(Collectors.toList());
@@ -74,58 +109,67 @@ public class RoleServiceImp implements IRoleService {
 
     @Override
     public RoleResponse updateRole(String name, RoleUpdateRequest roleUpdateRequest) {
-        RoleEntity roleEntity = roleRepository.findByName(name)
-                .orElseThrow(() -> new RuntimeException("Role not found"));
+        //Duplicate permission
+        RoleEntity roleEntity = findRoleByName(name);
 
-            roleEntity.setDeleted(roleUpdateRequest.isDeleted());
+        updateRoleAttributes(roleEntity, roleUpdateRequest);
 
         if (roleUpdateRequest.getPermissions() != null) {
-            List<PermissionEntity> permissions =
-                    permissionRepository.findAllById(roleUpdateRequest.getPermissions());
-
-            if (permissions.size() != roleUpdateRequest.getPermissions().size()) {
-                throw new RuntimeException("Some permissions do not exist");
-            }
-
-            List<PermissionEntity> validPermissions = permissions.stream()
-                    .filter(permission -> !permission.isDeleted())
-                    .toList();
-
-            if (validPermissions.size() != permissions.size()) {
-                throw new RuntimeException("Some permissions are marked as deleted");
-            }
-
-            List<RolePermission> rolePermissions = validPermissions.stream()
-                    .map(permission -> RolePermission.builder()
-                            .roleName(roleEntity.getName())
-                            .permissionName(permission.getName())
-                            .build())
-                    .collect(Collectors.toList());
-
-            rolePermissionRepository.saveAll(rolePermissions);
+            updateRolePermissions(roleEntity, roleUpdateRequest.getPermissions());
         }
 
-        roleRepository.save(roleEntity);
+        saveRoleAuditDetails(roleEntity);
 
+        List<PermissionResponse> permissionResponses = getPermissionResponsesForRole(roleEntity);
+
+        return roleMapper.toRoleResponse(roleEntity, permissionResponses);
+    }
+
+    private RoleEntity findRoleByName(String name) {
+        return roleRepository.findByName(name)
+                .orElseThrow(() -> new RuntimeException("Role not found"));
+    }
+
+    private void updateRoleAttributes(RoleEntity roleEntity, RoleUpdateRequest roleUpdateRequest) {
+        if ("false".equalsIgnoreCase(roleUpdateRequest.getIsDeleted())) {
+            roleEntity.setDeleted(false);
+        }
+
+        if ("true".equalsIgnoreCase(roleUpdateRequest.getIsRoot())) {
+            roleEntity.setRoot(true);
+        }
+    }
+
+    private void updateRolePermissions(RoleEntity roleEntity, List<String> permissionNames) {
+        List<PermissionEntity> validPermissions = fetchAndValidatePermissions(permissionNames);
+
+        List<RolePermission> rolePermissions = validPermissions.stream()
+                .map(permission -> RolePermission.builder()
+                        .roleName(roleEntity.getName())
+                        .permissionName(permission.getName())
+                        .build())
+                .collect(Collectors.toList());
+
+        rolePermissionRepository.saveAll(rolePermissions);
+    }
+
+    private void saveRoleAuditDetails(RoleEntity roleEntity) {
+        String currentAuditor = auditorAwareImp.getCurrentAuditor().orElse("Unknown");
+        roleEntity.setLastModifiedBy(currentAuditor);
+        roleEntity.setLastModifiedAt(LocalDateTime.now());
+        roleRepository.save(roleEntity);
+    }
+
+    private List<PermissionResponse> getPermissionResponsesForRole(RoleEntity roleEntity) {
         List<RolePermission> rolePermissions = rolePermissionRepository.findByRoleName(roleEntity.getName());
-        List<PermissionResponse> permissionResponses = rolePermissions.stream()
+
+        return rolePermissions.stream()
                 .map(rolePermission -> {
                     PermissionEntity permission = permissionRepository.findByName(rolePermission.getPermissionName())
                             .orElseThrow(() -> new RuntimeException("Permission not found"));
-                    return new PermissionResponse(
-                            permission.getName(),
-                            permission.getResource(),
-                            permission.getScope(),
-                            permission.isDeleted()
-                    );
+                    return permissionMapper.toPermissionResponse(permission);
                 })
                 .collect(Collectors.toList());
-
-        return RoleResponse.builder()
-                .name(roleEntity.getName())
-                .isDeleted(roleEntity.isDeleted())
-                .permissions(permissionResponses)
-                .build();
     }
 
     @Override
@@ -152,6 +196,7 @@ public class RoleServiceImp implements IRoleService {
 
                     return RoleResponse.builder()
                             .name(role.getName())
+                            .isRoot(role.isRoot())
                             .isDeleted(role.isDeleted())
                             .permissions(permissions)
                             .build();

@@ -1,6 +1,7 @@
-package com.theanh.iamservice.IAM_Service_2.Mapper;
+package com.theanh.iamservice.IAM_Service_2.Mappers;
 
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Admin.PermissionCreationRequest;
+import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Admin.PermissionUpdateRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Admin.PermissionResponse;
 import com.theanh.iamservice.IAM_Service_2.Entities.PermissionEntity;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,19 @@ public class PermissionMapper {
                 .scope(permissionCreationRequest.getScope())
                 .build();
     }
+
+    public PermissionEntity toPermissionEntity(PermissionUpdateRequest permissionUpdateRequest) {
+        if (permissionUpdateRequest == null) {
+            throw new IllegalArgumentException("SignUpRequest cannot be null");
+        }
+
+        return PermissionEntity
+                .builder()
+                .resource(permissionUpdateRequest.getResource())
+                .scope(permissionUpdateRequest.getScope())
+                .build();
+    }
+
 
     public PermissionResponse toPermissionResponse(PermissionEntity permissionEntity) {
         if (permissionEntity == null) {
