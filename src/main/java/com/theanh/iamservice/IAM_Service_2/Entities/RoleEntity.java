@@ -15,7 +15,7 @@ import java.util.UUID;
 public class RoleEntity {
     @Id
     @GeneratedValue
-    private UUID id;
+    private Long id;
 
     private String name;
 }

@@ -18,9 +18,9 @@ import java.util.UUID;
 public class RolePermission {
     @Id
     @GeneratedValue
-    private UUID id;
+    private Long id;
 
-    private UUID roleId;
+    private Long roleId;
 
-    private UUID permissionId;
+    private Long permissionId;
 }

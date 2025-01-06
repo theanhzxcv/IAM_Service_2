@@ -18,11 +18,9 @@ import java.util.UUID;
 public class PermissionEntity {
     @Id
     @GeneratedValue
-    private UUID id;
-
-    private String name;
-    
+    private Long id;
     private String resource;
-
     private String scope;
+
+    private boolean isDeleted = false;
 }

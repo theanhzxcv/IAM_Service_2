@@ -11,7 +11,7 @@ import com.theanh.iamservice.IAM_Service_2.Entities.UserEntity;
 import com.theanh.iamservice.IAM_Service_2.Exception.AppException;
 import com.theanh.iamservice.IAM_Service_2.Exception.ErrorCode;
 import com.theanh.iamservice.IAM_Service_2.Jwts.JwtUtil;
-import com.theanh.iamservice.IAM_Service_2.Mapper.UserEntityMapper;
+import com.theanh.iamservice.IAM_Service_2.Mapper.UserMapper;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserActivityRepository;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserRepository;
 import com.theanh.iamservice.IAM_Service_2.Services.IAuthService;
@@ -33,7 +33,7 @@ public class ApplicationAuthServiceImp implements IAuthService {
     private final UserRepository userRepository;
     private final AuditorAwareImp auditorAwareImp;
     private final PasswordEncoder passwordEncoder;
-    private final UserEntityMapper userEntityMapper;
+    private final UserMapper userMapper;
     private final JwtBlacklistService jwtBlacklistService;
     private final UserActivityRepository userActivityRepository;
 
@@ -98,7 +98,7 @@ public class ApplicationAuthServiceImp implements IAuthService {
         }
 
         try {
-            UserEntity userEntity = userEntityMapper.toUserEntity(signUpRequest);
+            UserEntity userEntity = userMapper.toUserEntity(signUpRequest);
             userEntity.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
 
             userEntity.setCreatedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));

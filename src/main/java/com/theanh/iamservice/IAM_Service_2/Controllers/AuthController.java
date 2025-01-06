@@ -22,13 +22,8 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
     private final AuthServiceFactory authServiceFactory;
 
-    @GetMapping("/greet")
-    private ApiResponse<String> greet() {
-        return ApiResponseBuilder.buildSuccessResponse("Authenticated", "Hello authenticated user");
-    }
-
     @PostMapping("/sign-in")
-    public ApiResponse<AuthResponse> login(@ParameterObject @RequestBody SignInRequest signInRequest,
+    public ApiResponse<AuthResponse> login(@ParameterObject SignInRequest signInRequest,
                                            HttpServletRequest request) {
         IAuthService authService = authServiceFactory.getAuthService();
         AuthResponse signedIn = authService.login(signInRequest, request);
@@ -39,7 +34,7 @@ public class AuthController {
     }
 
     @PostMapping("/sign-up")
-    private ApiResponse<String> registration(@ParameterObject @RequestBody SignUpRequest signUpRequest,
+    private ApiResponse<String> registration(@ParameterObject SignUpRequest signUpRequest,
                                              HttpServletRequest request) {
         IAuthService authService = authServiceFactory.getAuthService();
         String signedUp = authService.registration(signUpRequest, request);
@@ -49,8 +44,8 @@ public class AuthController {
                 signedUp);
     }
 
-    @GetMapping("/logout")
-    private ApiResponse<String> logout(@ParameterObject @RequestBody SignOutRequest signOutRequest,
+    @DeleteMapping("/logout")
+    private ApiResponse<String> logout(@ParameterObject SignOutRequest signOutRequest,
                                        HttpServletRequest request) {
         IAuthService authService = authServiceFactory.getAuthService();
         String loggedOut = authService.logout(signOutRequest, request);

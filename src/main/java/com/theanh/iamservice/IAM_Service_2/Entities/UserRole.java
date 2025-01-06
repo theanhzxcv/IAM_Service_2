@@ -19,9 +19,9 @@ public class UserRole {
 
     @Id
     @GeneratedValue
-    private UUID id;
+    private Long id;
 
     private UUID userId;
 
-    private UUID roleId;
+    private Long roleId;
 }

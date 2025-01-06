@@ -8,7 +8,7 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management.UserResponse
 import com.theanh.iamservice.IAM_Service_2.Entities.UserEntity;
 import com.theanh.iamservice.IAM_Service_2.Exception.AppException;
 import com.theanh.iamservice.IAM_Service_2.Exception.ErrorCode;
-import com.theanh.iamservice.IAM_Service_2.Mapper.UserEntityMapper;
+import com.theanh.iamservice.IAM_Service_2.Mapper.UserMapper;
 import com.theanh.iamservice.IAM_Service_2.Repositories.RepositoryImp.UserRepositoryImp;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserRepository;
 import com.theanh.iamservice.IAM_Service_2.Services.IManagementService;
@@ -30,12 +30,12 @@ public class ManagementServiceImp implements IManagementService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditorAwareImp auditorAwareImp;
-    private final UserEntityMapper userEntityMapper;
+    private final UserMapper userMapper;
     private final UserRepositoryImp userRepositoryImp;
 
     @Override
     public UserResponse createNewUser(UserCreationRequest userCreationRequest) {
-        UserEntity userEntity = userEntityMapper.toUserEntity(userCreationRequest);
+        UserEntity userEntity = userMapper.toUserEntity(userCreationRequest);
         userEntity.setPassword(passwordEncoder.encode(userCreationRequest.getPassword()));
 
         userEntity.setCreatedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));
@@ -46,7 +46,7 @@ public class ManagementServiceImp implements IManagementService {
 
         userRepository.save(userEntity);
 
-        return userEntityMapper.toUserResponse(userEntity);
+        return userMapper.toUserResponse(userEntity);
     }
 
     @Override
@@ -55,12 +55,12 @@ public class ManagementServiceImp implements IManagementService {
 
         Page<UserEntity> userPage = userRepository.findAll(pageable);
 
-        return userPage.map(userEntityMapper::toUserResponse);
+        return userPage.map(userMapper::toUserResponse);
     }
 
     @Override
     public UserResponse findUserById(UUID id) {
-        return userEntityMapper.toUserResponse(userRepository.findById(id)
+        return userMapper.toUserResponse(userRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND)));
     }
 
@@ -71,7 +71,7 @@ public class ManagementServiceImp implements IManagementService {
         Long totalCount = userRepositoryImp.count(userSearchRequest);
 
         List<SearchResponse> userResponses = userEntities.stream()
-                .map(userEntityMapper::toSearchResponse)
+                .map(userMapper::toSearchResponse)
                 .toList();
 
         return new PageImpl<>(
@@ -88,7 +88,7 @@ public class ManagementServiceImp implements IManagementService {
 
         userEntity.setBanned(true);
         userRepository.save(userEntity);
-        return userEntityMapper.toUserResponse(userEntity);
+        return userMapper.toUserResponse(userEntity);
     }
 
     @Override
@@ -98,6 +98,6 @@ public class ManagementServiceImp implements IManagementService {
 
         userEntity.setDeleted(true);
         userRepository.save(userEntity);
-        return userEntityMapper.toUserResponse(userEntity);
+        return userMapper.toUserResponse(userEntity);
     }
 }

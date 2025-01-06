@@ -11,7 +11,7 @@ import com.theanh.iamservice.IAM_Service_2.Entities.UserEntity;
 import com.theanh.iamservice.IAM_Service_2.Exception.AppException;
 import com.theanh.iamservice.IAM_Service_2.Exception.ErrorCode;
 import com.theanh.iamservice.IAM_Service_2.Keycloak.KeycloakProperties;
-import com.theanh.iamservice.IAM_Service_2.Mapper.UserEntityMapper;
+import com.theanh.iamservice.IAM_Service_2.Mapper.UserMapper;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserActivityRepository;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserRepository;
 import com.theanh.iamservice.IAM_Service_2.Services.IAuthService;
@@ -27,7 +27,6 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -38,7 +37,7 @@ public class KeycloakAuthServiceImp implements IAuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditorAwareImp auditorAwareImp;
-    private final UserEntityMapper userEntityMapper;
+    private final UserMapper userMapper;
     private final KeycloakProperties keycloakProperties;
     private final UserActivityRepository userActivityRepository;
 
@@ -202,7 +201,7 @@ public class KeycloakAuthServiceImp implements IAuthService {
                 throw new AppException(ErrorCode.REGISTRATION_FAILED);
             }
 
-            UserEntity userEntity = userEntityMapper.toUserEntity(signUpRequest);
+            UserEntity userEntity = userMapper.toUserEntity(signUpRequest);
             userEntity.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
 
             userEntity.setCreatedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));

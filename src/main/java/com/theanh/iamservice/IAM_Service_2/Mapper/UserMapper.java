@@ -8,10 +8,8 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management.UserResponse
 import com.theanh.iamservice.IAM_Service_2.Entities.UserEntity;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-
 @Component
-public class UserEntityMapper {
+public class UserMapper {
 
     public UserEntity toUserEntity(SignUpRequest signUpRequest) {
         if (signUpRequest == null) {

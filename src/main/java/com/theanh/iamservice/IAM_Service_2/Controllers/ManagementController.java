@@ -23,7 +23,7 @@ public class ManagementController {
     private final ManagementServiceImp managementServiceImp;
 
     @PostMapping
-    public ApiResponse<UserResponse> createNewUser(@ParameterObject @RequestBody UserCreationRequest userCreationRequest) {
+    public ApiResponse<UserResponse> createNewUser(@ParameterObject UserCreationRequest userCreationRequest) {
         UserResponse newUser = managementServiceImp.createNewUser(userCreationRequest);
 
         return ApiResponseBuilder.createdSuccessResponse("New user created",
@@ -31,7 +31,7 @@ public class ManagementController {
     }
 
     @GetMapping
-    public ApiResponse<Page<UserResponse>> allUsers(@ParameterObject @RequestParam int page, @RequestParam int size) {
+    public ApiResponse<Page<UserResponse>> allUsers(@RequestParam int page, @RequestParam int size) {
         Page<UserResponse> allUsers = managementServiceImp.allUsers(page, size);
 
         return ApiResponseBuilder.buildSuccessResponse("All users",
@@ -60,7 +60,7 @@ public class ManagementController {
                         + userSearchRequest.getKeyword(), userMatchedFound);
     }
 
-    @PutMapping("/{id}/ban")
+    @PutMapping("/ban/{id}")
     public ApiResponse<UserResponse> banUser(@PathVariable("id") UUID id) {
         UserResponse bannedUser = managementServiceImp.banUser(id);
 
