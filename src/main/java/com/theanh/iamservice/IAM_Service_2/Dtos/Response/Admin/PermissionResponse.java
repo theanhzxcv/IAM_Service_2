@@ -8,7 +8,8 @@ import lombok.Setter;
 @Setter
 @Builder
 public class PermissionResponse {
-    private Long id;
+    private String name;
     private String resource;
     private String scope;
+    private boolean isDeleted;
 }

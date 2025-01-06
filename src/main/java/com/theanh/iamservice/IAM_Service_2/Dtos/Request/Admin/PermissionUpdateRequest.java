@@ -9,8 +9,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class PermissionCreationRequest {
-    private String name;
+public class PermissionUpdateRequest {
     private String resource;
     private String scope;
 }

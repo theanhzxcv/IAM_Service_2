@@ -14,8 +14,8 @@ import java.util.UUID;
 @Table(name = "roles")
 public class RoleEntity {
     @Id
-    @GeneratedValue
-    private Long id;
-
+    @Column(name = "role_name")
     private String name;
+
+    private boolean isDeleted;
 }

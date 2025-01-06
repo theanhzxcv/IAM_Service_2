@@ -23,5 +23,5 @@ public class UserRole {
 
     private UUID userId;
 
-    private Long roleId;
+    private String roleName;
 }

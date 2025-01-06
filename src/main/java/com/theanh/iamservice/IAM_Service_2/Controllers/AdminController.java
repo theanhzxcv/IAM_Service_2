@@ -1,6 +1,7 @@
 package com.theanh.iamservice.IAM_Service_2.Controllers;
 
-import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Admin.PermissionRequest;
+import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Admin.PermissionCreationRequest;
+import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Admin.PermissionUpdateRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Admin.PermissionResponse;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api.ApiResponse;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api.ApiResponseBuilder;
@@ -20,8 +21,8 @@ public class AdminController {
 
     @PostMapping
     public ApiResponse<PermissionResponse> createPermission(
-            @ParameterObject PermissionRequest permissionRequest) {
-        PermissionResponse newPermission = permissionServiceImp.createPermission(permissionRequest);
+            @ParameterObject PermissionCreationRequest permissionCreationRequest) {
+        PermissionResponse newPermission = permissionServiceImp.createPermission(permissionCreationRequest);
 
         return ApiResponseBuilder.createdSuccessResponse("New permission created",
                 newPermission);
@@ -36,19 +37,19 @@ public class AdminController {
                 allPermission);
     }
 
-    @PatchMapping("/{id}")
+    @PatchMapping("/{name}")
     public ApiResponse<PermissionResponse> updatePermission(
-            @PathVariable("id") Long id,
-            @ParameterObject PermissionRequest permissionRequest) {
-        PermissionResponse updatedPermission = permissionServiceImp.updatePermission(id, permissionRequest);
+            @PathVariable("name") String name,
+            @ParameterObject PermissionUpdateRequest permissionUpdateRequest) {
+        PermissionResponse updatedPermission = permissionServiceImp.updatePermission(name, permissionUpdateRequest);
 
         return ApiResponseBuilder.buildSuccessResponse("Updated permissions",
                 updatedPermission);
     }
 
-    @DeleteMapping("/{id}")
-    public ApiResponse<String> deletePermission(@PathVariable Long id) {
-        String deletedPermission = permissionServiceImp.deletePermission(id);
+    @DeleteMapping("/{name}")
+    public ApiResponse<String> deletePermission(@PathVariable("name") String name) {
+        String deletedPermission = permissionServiceImp.deletePermission(name);
 
         return ApiResponseBuilder.buildSuccessResponse("Permission deleted",
                 deletedPermission);

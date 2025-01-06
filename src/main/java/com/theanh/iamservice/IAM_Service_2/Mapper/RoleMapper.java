@@ -13,8 +13,8 @@ public class RoleMapper {
         }
 
         return RoleResponse.builder()
-                .id(roleEntity.getId())
                 .name(roleEntity.getName())
+                .isDeleted(roleEntity.isDeleted())
                 .build();
     }
 }

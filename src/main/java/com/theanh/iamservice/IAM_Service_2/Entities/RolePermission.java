@@ -20,7 +20,7 @@ public class RolePermission {
     @GeneratedValue
     private Long id;
 
-    private Long roleId;
+    private String roleName;
 
-    private Long permissionId;
+    private String permissionName;
 }
