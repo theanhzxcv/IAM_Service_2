@@ -2,6 +2,7 @@ package com.theanh.iamservice.IAM_Service_2.Controllers;
 
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Management.UserCreationRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Management.UserSearchRequest;
+import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Management.UserUpdateRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api.ApiResponse;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api.ApiResponseBuilder;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management.SearchResponse;
@@ -38,14 +39,6 @@ public class ManagementController {
                 allUsers);
     }
 
-    @GetMapping("/{id}")
-    public ApiResponse<UserResponse> findUserById(@PathVariable("id") UUID id) {
-        UserResponse result = managementServiceImp.findUserById(id);
-
-        return ApiResponseBuilder.buildSuccessResponse("User with id: " + id + " found",
-                result);
-    }
-
     @GetMapping("/search")
     public ApiResponse<Page<SearchResponse>> findUserByKeyword(
             @ParameterObject UserSearchRequest userSearchRequest
@@ -60,17 +53,27 @@ public class ManagementController {
                         + userSearchRequest.getKeyword(), userMatchedFound);
     }
 
-    @PutMapping("/ban/{id}")
-    public ApiResponse<UserResponse> banUser(@PathVariable("id") UUID id) {
-        UserResponse bannedUser = managementServiceImp.banUser(id);
+    @PatchMapping("/{email}")
+    public ApiResponse<UserResponse> updateUser(
+            @PathVariable("email") String emailAddress,
+            @ParameterObject UserUpdateRequest userUpdateRequest) {
+        UserResponse updatedUser = managementServiceImp.updateUser(emailAddress, userUpdateRequest);
+
+        return ApiResponseBuilder.buildSuccessResponse("User with email: " + emailAddress + " updated",
+                updatedUser);
+    }
+
+    @PutMapping("/ban/{email}")
+    public ApiResponse<UserResponse> banUser(@PathVariable("email") String emailAddress) {
+        UserResponse bannedUser = managementServiceImp.banUser(emailAddress);
 
         return ApiResponseBuilder.buildSuccessResponse("User banned",
                 bannedUser);
     }
 
-    @DeleteMapping("/{id}")
-    public ApiResponse<UserResponse> deleteUser(@PathVariable("id") UUID id) {
-        UserResponse deletedUser = managementServiceImp.deleteUser(id);
+    @DeleteMapping("/{email}")
+    public ApiResponse<UserResponse> deleteUser(@PathVariable("email") String emailAddress) {
+        UserResponse deletedUser = managementServiceImp.deleteUser(emailAddress);
 
         return ApiResponseBuilder.buildSuccessResponse("User deleted",
                 deletedUser);

@@ -1,12 +1,12 @@
 package com.theanh.iamservice.IAM_Service_2.Dtos.Response.Admin;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 @Getter
 @Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PermissionResponse {
     private String name;
     private String resource;

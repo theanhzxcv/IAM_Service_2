@@ -45,6 +45,7 @@ public class PermissionServiceImp implements IPermissionService {
             permissionEntity.setScope(permissionUpdateRequest.getScope());
         }
 
+        permissionEntity.setScope(permissionUpdateRequest.getScope());
         PermissionEntity updatePermission = permissionRepository.save(permissionEntity);
 
         return permissionMapper.toPermissionResponse(updatePermission);

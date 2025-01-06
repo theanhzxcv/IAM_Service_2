@@ -1,16 +1,18 @@
 package com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Admin.RoleResponse;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
 @Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class UserResponse {
     private UUID id;
 
@@ -34,4 +36,6 @@ public class UserResponse {
     private LocalDateTime createdAt;
     private String lastModifiedBy;
     private LocalDateTime lastModifiedAt;
+
+    private List<RoleResponse> roleResponses;
 }

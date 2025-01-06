@@ -3,10 +3,13 @@ package com.theanh.iamservice.IAM_Service_2.Mapper;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Authentication.SignUpRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Management.UserCreationRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Management.UserUpdateRequest;
+import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Admin.RoleResponse;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management.SearchResponse;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management.UserResponse;
 import com.theanh.iamservice.IAM_Service_2.Entities.UserEntity;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class UserMapper {
@@ -49,15 +52,11 @@ public class UserMapper {
 
         return UserEntity.builder()
                 .username(userUpdateRequest.getUsername())
-                .emailAddress(userUpdateRequest.getEmailAddress())
-                .password(userUpdateRequest.getPassword())
                 .firstname(userUpdateRequest.getFirstname())
                 .lastname(userUpdateRequest.getLastname())
                 .address(userUpdateRequest.getAddress())
                 .phoneNumber(userUpdateRequest.getPhoneNumber())
                 .dateOfBirth(userUpdateRequest.getDateOfBirth())
-                .isBanned(userUpdateRequest.isBanned())
-                .isDeleted(userUpdateRequest.isDeleted())
                 .build();
     }
 
@@ -82,6 +81,31 @@ public class UserMapper {
                 .createdAt(userEntity.getCreatedAt())
                 .lastModifiedBy(userEntity.getLastModifiedBy())
                 .lastModifiedAt(userEntity.getLastModifiedAt())
+                .build();
+    }
+
+    public UserResponse toUserResponse(UserEntity userEntity, List<RoleResponse> roleResponses) {
+        if (userEntity == null) {
+            throw new IllegalArgumentException("UserEntity cannot be null");
+        }
+
+        return UserResponse.builder()
+                .id(userEntity.getId())
+                .username(userEntity.getUsername())
+                .emailAddress(userEntity.getEmailAddress())
+                .password(userEntity.getPassword())
+                .firstname(userEntity.getFirstname())
+                .lastname(userEntity.getLastname())
+                .address(userEntity.getAddress())
+                .phoneNumber(userEntity.getPhoneNumber())
+                .dateOfBirth(userEntity.getDateOfBirth())
+                .isDeleted(userEntity.isDeleted())
+                .isBanned(userEntity.isBanned())
+                .createdBy(userEntity.getCreatedBy())
+                .createdAt(userEntity.getCreatedAt())
+                .lastModifiedBy(userEntity.getLastModifiedBy())
+                .lastModifiedAt(userEntity.getLastModifiedAt())
+                .roleResponses(roleResponses)
                 .build();
     }
 

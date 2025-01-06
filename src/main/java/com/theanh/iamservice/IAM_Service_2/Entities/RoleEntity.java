@@ -2,6 +2,7 @@ package com.theanh.iamservice.IAM_Service_2.Entities;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.security.core.GrantedAuthority;
 
 import java.util.UUID;
 
@@ -12,10 +13,15 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "roles")
-public class RoleEntity {
+public class RoleEntity implements GrantedAuthority {
     @Id
     @Column(name = "role_name")
     private String name;
 
-    private boolean isDeleted;
+    private boolean isDeleted = false;
+
+    @Override
+    public String getAuthority() {
+        return name;
+    }
 }
