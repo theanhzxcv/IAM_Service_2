@@ -11,6 +11,7 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management.UserResponse
 import com.theanh.iamservice.IAM_Service_2.Entities.*;
 import com.theanh.iamservice.IAM_Service_2.Exception.AppException;
 import com.theanh.iamservice.IAM_Service_2.Exception.ErrorCode;
+import com.theanh.iamservice.IAM_Service_2.Keycloak.KeycloakProperties;
 import com.theanh.iamservice.IAM_Service_2.Mappers.RoleMapper;
 import com.theanh.iamservice.IAM_Service_2.Mappers.UserMapper;
 import com.theanh.iamservice.IAM_Service_2.Repositories.*;
@@ -21,11 +22,17 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,7 +48,33 @@ public class ManagementServiceImp implements IManagementService {
     private final PasswordEncoder passwordEncoder;
     private final AuditorAwareImp auditorAwareImp;
     private final UserRepositoryImp userRepositoryImp;
+    private final KeycloakProperties keycloakProperties;
 
+    private String getAdminToken() {
+        String tokenUrl = keycloakProperties.getAuthServerUrl()
+                + "/realms/"
+                + keycloakProperties.getRealm()
+                + "/protocol/openid-connect/token";
+
+        LinkedMultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("grant_type", "password");
+        body.add("client_id", keycloakProperties.getClientId());
+        body.add("client_secret", keycloakProperties.getClientSecret());
+        body.add("username", keycloakProperties.getAdminUsername());
+        body.add("password", keycloakProperties.getAdminPassword());
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        RestTemplate restTemplate = new RestTemplate();
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                tokenUrl,
+                new org.springframework.http.HttpEntity<>(body, headers),
+                Map.class
+        );
+
+        return (String) response.getBody().get("access_token");
+    }
 
     @Override
     public UserResponse createNewUser(UserCreationRequest userCreationRequest) {

@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -109,7 +110,6 @@ public class RoleServiceImp implements IRoleService {
 
     @Override
     public RoleResponse updateRole(String name, RoleUpdateRequest roleUpdateRequest) {
-        //Duplicate permission
         RoleEntity roleEntity = findRoleByName(name);
 
         updateRoleAttributes(roleEntity, roleUpdateRequest);
@@ -143,14 +143,21 @@ public class RoleServiceImp implements IRoleService {
     private void updateRolePermissions(RoleEntity roleEntity, List<String> permissionNames) {
         List<PermissionEntity> validPermissions = fetchAndValidatePermissions(permissionNames);
 
-        List<RolePermission> rolePermissions = validPermissions.stream()
+        List<RolePermission> existingRolePermissions = rolePermissionRepository.findByRoleName(roleEntity.getName());
+
+        Set<String> existingPermissionNames = existingRolePermissions.stream()
+                .map(RolePermission::getPermissionName)
+                .collect(Collectors.toSet());
+
+        List<RolePermission> newRolePermissions = validPermissions.stream()
+                .filter(permission -> !existingPermissionNames.contains(permission.getName()))
                 .map(permission -> RolePermission.builder()
                         .roleName(roleEntity.getName())
                         .permissionName(permission.getName())
                         .build())
                 .collect(Collectors.toList());
 
-        rolePermissionRepository.saveAll(rolePermissions);
+        rolePermissionRepository.saveAll(newRolePermissions);
     }
 
     private void saveRoleAuditDetails(RoleEntity roleEntity) {
@@ -175,36 +182,42 @@ public class RoleServiceImp implements IRoleService {
     @Override
     public Page<RoleResponse> allRoles(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-
         Page<RoleEntity> rolePage = roleRepository.findAll(pageable);
 
         List<RoleResponse> roleResponses = rolePage.getContent().stream()
-                .map(role -> {
-                    List<RolePermission> rolePermissions = rolePermissionRepository.findByRoleName(role.getName());
-                    List<PermissionResponse> permissions = rolePermissions.stream()
-                            .map(rolePermission -> {
-                                PermissionEntity permission = permissionRepository.findByName(rolePermission.getPermissionName())
-                                        .orElseThrow(() -> new RuntimeException("Permission not found"));
-                                return new PermissionResponse(
-                                        permission.getName(),
-                                        permission.getResource(),
-                                        permission.getScope(),
-                                        permission.isDeleted()
-                                );
-                            })
-                            .collect(Collectors.toList());
-
-                    return RoleResponse.builder()
-                            .name(role.getName())
-                            .isRoot(role.isRoot())
-                            .isDeleted(role.isDeleted())
-                            .permissions(permissions)
-                            .build();
-
-                })
+                .map(this::mapRoleToRoleResponse)  // Using method reference for clarity
                 .collect(Collectors.toList());
 
         return new PageImpl<>(roleResponses, pageable, rolePage.getTotalElements());
+    }
+
+    private RoleResponse mapRoleToRoleResponse(RoleEntity role) {
+        List<PermissionResponse> permissions = getPermissionsForRole(role);
+        return RoleResponse.builder()
+                .name(role.getName())
+                .isRoot(role.isRoot())
+                .isDeleted(role.isDeleted())
+                .permissions(permissions)
+                .build();
+    }
+
+    private List<PermissionResponse> getPermissionsForRole(RoleEntity role) {
+        List<RolePermission> rolePermissions = rolePermissionRepository.findByRoleName(role.getName());
+        return rolePermissions.stream()
+                .map(this::mapRolePermissionToPermissionResponse)
+                .collect(Collectors.toList());
+    }
+
+    private PermissionResponse mapRolePermissionToPermissionResponse(RolePermission rolePermission) {
+        PermissionEntity permission = permissionRepository.findByName(rolePermission.getPermissionName())
+                .orElseThrow(() -> new RuntimeException("Permission not found"));
+
+        return PermissionResponse.builder()
+                .name(permission.getName())
+                .resource(permission.getResource())
+                .scope(permission.getScope())
+                .isDeleted(permission.isDeleted())
+                .build();
     }
 
     @Override

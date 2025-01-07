@@ -54,7 +54,6 @@ public class ApplicationAuthServiceImp implements IAuthService {
         return ipAddress;
     }
 
-
     @Override
     public AuthResponse login(SignInRequest signInRequest, HttpServletRequest request) {
         UserEntity userEntity = userRepository.findByEmailAddress(signInRequest.getEmailAddress())

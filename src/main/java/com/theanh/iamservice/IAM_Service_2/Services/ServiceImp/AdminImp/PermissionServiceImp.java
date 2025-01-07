@@ -21,7 +21,6 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class PermissionServiceImp implements IPermissionService {
-
     private final AuditorAwareImp auditorAwareImp;
     private final PermissionMapper permissionMapper;
     private final PermissionRepository permissionRepository;
@@ -49,25 +48,30 @@ public class PermissionServiceImp implements IPermissionService {
     @Override
     public PermissionResponse updatePermission(String name, PermissionUpdateRequest permissionUpdateRequest) {
         PermissionEntity permissionEntity = permissionRepository.findByName(name)
-                .orElseThrow(() -> new RuntimeException("Not found"));
+                .orElseThrow(() -> new RuntimeException("Permission not found"));
 
         if (permissionUpdateRequest == null) {
             throw new AppException(ErrorCode.FIELD_MISSING);
         }
 
-        permissionEntity = permissionMapper.toPermissionEntity(permissionUpdateRequest);
-        if (permissionUpdateRequest.getIsDeleted().equals("false")) {
+        if (permissionUpdateRequest.getResource() != null) {
+            permissionEntity.setResource(permissionUpdateRequest.getResource());
+        }
+        if (permissionUpdateRequest.getScope() != null) {
+            permissionEntity.setScope(permissionUpdateRequest.getScope());
+        }
+        if ("false".equals(permissionUpdateRequest.getIsDeleted())) {
             permissionEntity.setDeleted(false);
         }
-        String currentAuditor = auditorAwareImp.getCurrentAuditor().orElse("Unknown");
 
+        String currentAuditor = auditorAwareImp.getCurrentAuditor().orElse("Unknown");
         permissionEntity.setLastModifiedBy(currentAuditor);
         permissionEntity.setLastModifiedAt(LocalDateTime.now());
 
-        PermissionEntity updatePermission = permissionRepository.save(permissionEntity);
-
-        return permissionMapper.toPermissionResponse(updatePermission);
+        PermissionEntity updatedPermission = permissionRepository.save(permissionEntity);
+        return permissionMapper.toPermissionResponse(updatedPermission);
     }
+
 
     @Override
     public Page<PermissionResponse> allPermissions(int page, int size) {

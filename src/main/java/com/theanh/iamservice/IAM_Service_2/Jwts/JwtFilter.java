@@ -79,6 +79,7 @@ public class JwtFilter extends OncePerRequestFilter {
         return email;
     }
 
+
     private boolean isTokenValid(String token, CustomUserDetails customUserDetails) {
         if (isKeycloakEnabled) {
             return jwtUtil.isKeycloakTokenValid(token, customUserDetails);

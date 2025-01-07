@@ -7,7 +7,7 @@ server:
   port: 8081
 
 keycloak:
-  enabled: false
+  enabled: true
   realm: IAMService
   auth-server-url: http://localhost:8080
   client:

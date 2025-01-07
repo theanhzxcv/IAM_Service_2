@@ -131,8 +131,6 @@ public class KeycloakAuthServiceImp implements IAuthService {
     }
 
     private String getAdminToken() {
-        String adminUsername = "theanh";
-        String adminPassword = "theanh";
         String tokenUrl =
                 keycloakProperties.getAuthServerUrl()
                 + "/realms/"
@@ -143,8 +141,8 @@ public class KeycloakAuthServiceImp implements IAuthService {
         body.add("grant_type", "password");
         body.add("client_id", keycloakProperties.getClientId());
         body.add("client_secret", keycloakProperties.getClientSecret());
-        body.add("username", adminUsername);
-        body.add("password", adminPassword);
+        body.add("username", keycloakProperties.getAdminUsername());
+        body.add("password", keycloakProperties.getAdminPassword());
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
