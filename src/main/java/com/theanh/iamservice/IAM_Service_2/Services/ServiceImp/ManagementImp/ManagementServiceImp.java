@@ -18,28 +18,31 @@ import com.theanh.iamservice.IAM_Service_2.Repositories.*;
 import com.theanh.iamservice.IAM_Service_2.Repositories.RepositoryImp.UserRepositoryImp;
 import com.theanh.iamservice.IAM_Service_2.Services.IManagementService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ManagementServiceImp implements IManagementService {
     private final RoleMapper roleMapper;
     private final UserMapper userMapper;
+    private final RestTemplate restTemplate;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
@@ -78,6 +81,11 @@ public class ManagementServiceImp implements IManagementService {
 
     @Override
     public UserResponse createNewUser(UserCreationRequest userCreationRequest) {
+        if (userRepository.findByUsername(userCreationRequest.getUsername()).isPresent()
+                || userRepository.findByEmailAddress(userCreationRequest.getEmailAddress()).isPresent()) {
+            throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
         UserEntity userEntity = saveUserEntity(userCreationRequest);
 
         List<RoleEntity> validRoles = getValidRoles(userCreationRequest);
@@ -92,22 +100,77 @@ public class ManagementServiceImp implements IManagementService {
     private UserEntity saveUserEntity(UserCreationRequest userCreationRequest) {
         UserEntity userEntity = userMapper.toUserEntity(userCreationRequest);
         userEntity.setPassword(passwordEncoder.encode(userCreationRequest.getPassword()));
+        saveUserToKeycloak(userCreationRequest.getUsername(),
+                userCreationRequest.getEmailAddress(),
+                userCreationRequest.getPassword(),
+                userCreationRequest.getFirstname(),
+                userCreationRequest.getLastname());
 
         String currentAuditor = auditorAwareImp.getCurrentAuditor().orElse("Unknown");
         userEntity.setCreatedBy(currentAuditor);
         userEntity.setCreatedAt(LocalDateTime.now());
-
         userEntity.setLastModifiedBy(currentAuditor);
         userEntity.setLastModifiedAt(LocalDateTime.now());
 
         return userRepository.save(userEntity);
     }
 
+    private void saveUserToKeycloak(String username,
+                                    String email,
+                                    String firstname,
+                                    String lastname,
+                                    String password) {
+        String adminToken = getAdminToken();
+        String registerUrl = keycloakProperties.getAuthServerUrl()
+                + "/admin/realms/"
+                + keycloakProperties.getRealm()
+                + "/users";
+
+        Map<String, Object> userPayload = Map.of(
+                "username", username,
+                "email", email,
+                "firstName", firstname,
+                "lastName", lastname,
+                "enabled", true,
+                "credentials", List.of(
+                        Map.of(
+                                "type", "password",
+                                "value", password,
+                                "temporary", false
+                        )
+                )
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(adminToken);
+
+        RestTemplate restTemplate = new RestTemplate();
+        try {
+            ResponseEntity<String> responseBody = restTemplate.postForEntity(
+                    registerUrl,
+                    new HttpEntity<>(userPayload, headers),
+                    String.class
+            );
+
+            if (!responseBody.getStatusCode().is2xxSuccessful()) {
+//                throw new AppException(ErrorCode.REGISTRATION_FAILED);
+            }
+
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 409) {
+                throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
+            }
+        }
+    }
+
     private List<RoleEntity> getValidRoles(UserCreationRequest userCreationRequest) {
         List<RoleEntity> roles = roleRepository.findAllById(userCreationRequest.getRoles());
 
         if (roles.size() != userCreationRequest.getRoles().size()) {
-            throw new RuntimeException("Some roles do not exist");
+            RoleEntity defaultRole = roleRepository.findByName("USER")
+                    .orElseThrow(() -> new RuntimeException("Default role USER does not exist"));
+            roles.add(defaultRole);
         }
 
         List<RoleEntity> validRoles = roles.stream()
@@ -175,15 +238,69 @@ public class ManagementServiceImp implements IManagementService {
     }
 
     @Override
-    public UserResponse updateUser(String emailAddress, UserUpdateRequest userUpdateRequest) {
-        UserEntity userEntity = getUserByEmail(emailAddress);
+    public String changePassword(String email, String newPassword) {
+        String adminToken = getAdminToken();
+        String userId = getUserIdByEmail(email);
 
-        if (userUpdateRequest == null) {
+        String url = keycloakProperties.getAuthServerUrl() +
+                "/admin/realms/" +
+                keycloakProperties.getRealm() +
+                "/users/" +
+                userId +
+                "/reset-password";
+
+        Map<String, Object> passwordPayload = Map.of(
+                "type", "password",
+                "value", newPassword,
+                "temporary", false
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(adminToken);
+
+        HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(passwordPayload, headers);
+
+        try {
+            restTemplate.exchange(url, HttpMethod.PUT, requestEntity, String.class);
+        } catch (HttpClientErrorException e) {
+            throw new RuntimeException("Failed to change password: " + e.getMessage(), e);
+        }
+        return "Change password successfully";
+    }
+
+    @Override
+    public UserResponse updateUser(UserUpdateRequest userUpdateRequest) {
+        if (userUpdateRequest.getEmail() == null
+                || userUpdateRequest.getUsername() == null
+                || userUpdateRequest.getFirstname() == null
+                || userUpdateRequest.getLastname() == null) {
             throw new AppException(ErrorCode.FIELD_MISSING);
         }
-        updateUserEntity(userEntity, userUpdateRequest);
 
-        if (userUpdateRequest.getRoles() != null) {
+        UserEntity userEntity = userRepository.findByEmailAddress(userUpdateRequest.getEmail())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        userEntity.setUsername(userUpdateRequest.getUsername());
+        userEntity.setFirstname(userUpdateRequest.getFirstname());
+        userEntity.setLastname(userUpdateRequest.getLastname());
+
+        userEntity.setBanned(!"No".equalsIgnoreCase(userUpdateRequest.getIsBanned()));
+        userEntity.setDeleted(!"No".equalsIgnoreCase(userUpdateRequest.getIsDeleted()));
+
+        String currentAuditor = auditorAwareImp.getCurrentAuditor().orElse("Unknown");
+        userEntity.setLastModifiedBy(currentAuditor);
+        userEntity.setLastModifiedAt(LocalDateTime.now());
+        userRepository.save(userEntity);
+
+        String userId = getUserIdByEmail(userUpdateRequest.getEmail());
+        updateUserInKeycloak(userId,
+                userUpdateRequest.getUsername(),
+                userUpdateRequest.getEmail(),
+                userUpdateRequest.getFirstname(),
+                userUpdateRequest.getLastname());
+
+        if (userUpdateRequest.getRoles() != null && !userUpdateRequest.getRoles().isEmpty()) {
             updateUserRoles(userEntity, userUpdateRequest.getRoles());
         }
 
@@ -194,30 +311,86 @@ public class ManagementServiceImp implements IManagementService {
         return userMapper.toUserResponse(userEntity, roleResponses);
     }
 
-    private UserEntity getUserByEmail(String emailAddress) {
-        return userRepository.findByEmailAddress(emailAddress)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    private String getUserIdByEmail(String email) {
+        String adminToken = getAdminToken();  // Assume you have a method to get the admin token
+        String searchUrl = keycloakProperties.getAuthServerUrl()
+                + "/admin/realms/"
+                + keycloakProperties.getRealm()
+                + "/users?email=" + email;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(adminToken);
+
+        RestTemplate restTemplate = new RestTemplate();
+        ResponseEntity<List> response = restTemplate.exchange(
+                searchUrl,
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                List.class
+        );
+
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null && !response.getBody().isEmpty()) {
+            Map<String, Object> user = (Map<String, Object>) response.getBody().get(0);
+            return user.get("id").toString();  // Return the user's ID
+        } else {
+            throw new AppException(ErrorCode.USER_NOT_FOUND);  // Handle user not found
+        }
     }
 
-    private void updateUserEntity(UserEntity userEntity, UserUpdateRequest userUpdateRequest) {
-        userEntity = userMapper.toUserEntity(userUpdateRequest);
-        if (userUpdateRequest.getIsBanned().equals("false")){
-            userEntity.setBanned(false);
-        }
-        if (userUpdateRequest.getIsDeleted().equals("false")){
-            userEntity.setDeleted(false);
-        }
+    private void updateUserInKeycloak(String userId,
+                                      String username,
+                                      String email,
+                                      String firstname,
+                                      String lastname) {
+        String adminToken = getAdminToken();
+        String updateUrl = keycloakProperties.getAuthServerUrl()
+                + "/admin/realms/"
+                + keycloakProperties.getRealm()
+                + "/users/" + userId;
 
-        String currentAuditor = auditorAwareImp.getCurrentAuditor().orElse("Unknown");
-        userEntity.setLastModifiedBy(currentAuditor);
-        userEntity.setLastModifiedAt(LocalDateTime.now());
+        Map<String, Object> userPayload = new HashMap<>();
+        userPayload.put("username", username);
+        userPayload.put("email", email);
+        userPayload.put("firstName", firstname);
+        userPayload.put("lastName", lastname);
+        userPayload.put("enabled", true);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(adminToken);
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(
+                    updateUrl,
+                    HttpMethod.PUT,
+                    new HttpEntity<>(userPayload, headers),
+                    String.class
+            );
+
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                throw new RuntimeException("Failed to update user. HTTP Status: " + response.getStatusCode());
+            }
+        } catch (HttpClientErrorException e) {
+            String responseBody = e.getResponseBodyAsString();
+            if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
+                throw new RuntimeException("User not found: " + responseBody, e);
+            } else {
+                throw new RuntimeException("Error updating user: " + responseBody, e);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Unexpected error: " + e.getMessage(), e);
+        }
     }
 
     private void updateUserRoles(UserEntity userEntity, List<String> roleNames) {
+        List<UserRole> existingUserRole = userRoleRepository.findByUserId(userEntity.getId());
+
         List<RoleEntity> roles = roleRepository.findAllById(roleNames);
 
         if (roles.size() != roleNames.size()) {
-            throw new RuntimeException("Some roles do not exist");
+            RoleEntity defaultRole = roleRepository.findByName("USER")
+                    .orElseThrow(() -> new RuntimeException("Default role USER does not exist"));
+            roles.add(defaultRole);
         }
 
         List<RoleEntity> validRoles = roles.stream()
@@ -229,6 +402,7 @@ public class ManagementServiceImp implements IManagementService {
         }
 
         List<UserRole> userRoles = validRoles.stream()
+                .filter(role -> !existingUserRole.contains(role.getName()))
                 .map(role -> UserRole.builder()
                         .userId(userEntity.getId())
                         .roleName(role.getName())

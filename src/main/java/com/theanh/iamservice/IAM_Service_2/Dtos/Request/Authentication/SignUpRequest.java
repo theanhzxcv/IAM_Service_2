@@ -1,5 +1,6 @@
 package com.theanh.iamservice.IAM_Service_2.Dtos.Request.Authentication;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -15,10 +16,18 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SignUpRequest {
+    @NotBlank(message = "FIELD_MISSING")
     private String username;
+
+    @NotBlank(message = "FIELD_MISSING")
     private String emailAddress;
+
+    @NotBlank(message = "FIELD_MISSING")
     private String password;
 
+    @NotBlank(message = "FIELD_MISSING")
     private String firstname;
+
+    @NotBlank(message = "FIELD_MISSING")
     private String lastname;
 }

@@ -1,9 +1,7 @@
 package com.theanh.iamservice.IAM_Service_2.Dtos.Request.Management;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.validation.constraints.NotBlank;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -13,14 +11,23 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserUpdateRequest {
-    private String username;
-    private String firstname;
-    private String lastname;
-    private String address;
-    private String phoneNumber;
-    private LocalDate dateOfBirth;
 
+    @NotBlank(message = "FIELD_MISSING")
+    private String email;
+
+    @NotBlank(message = "FIELD_MISSING")
+    private String username;
+
+    @NotBlank(message = "FIELD_MISSING")
+    private String firstname;
+
+    @NotBlank(message = "FIELD_MISSING")
+    private String lastname;
+
+    @NotBlank(message = "FIELD_MISSING")
     private String isDeleted;
+
+    @NotBlank(message = "FIELD_MISSING")
     private String isBanned;
 
     private List<String> roles;

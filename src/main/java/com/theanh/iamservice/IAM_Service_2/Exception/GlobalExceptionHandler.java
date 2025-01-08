@@ -4,6 +4,8 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api.ApiResponse;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api.ApiResponseBuilder;
 import io.swagger.v3.oas.annotations.Hidden;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -29,15 +31,15 @@ public class GlobalExceptionHandler {
                         errorCode.getMessage()));
     }
 
-//    @ExceptionHandler(value = MethodArgumentNotValidException.class)
-//    public ResponseEntity<ApiResponse<?>> handlingMethodArgumentNotValidException(MethodArgumentNotValidException exception) {
-//        String key = exception.getFieldError().getDefaultMessage();
-//        ErrorCode errorCode = ErrorCode.valueOf(key);
-//
-//        return ResponseEntity.status(errorCode.getHttpStatus()).body(ApiResponseBuilder
-//                .buildErrorResponse(errorCode.getHttpStatus(),
-//                        errorCode.getMessage()));
-//    }
+    @ExceptionHandler(value = MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<?>> handlingMethodArgumentNotValidException(MethodArgumentNotValidException exception) {
+        String key = exception.getFieldError().getDefaultMessage();
+        ErrorCode errorCode = ErrorCode.valueOf(key);
+
+        return ResponseEntity.status(errorCode.getHttpStatus()).body(ApiResponseBuilder
+                .buildErrorResponse(errorCode.getHttpStatus(),
+                        errorCode.getMessage()));
+    }
 //
 //    @ExceptionHandler(value = AccessDeniedException.class)
 //    public ResponseEntity<ApiResponse<?>> handlingAccessDeniedException(AccessDeniedException exception) {

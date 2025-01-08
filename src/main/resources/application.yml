@@ -7,7 +7,7 @@ server:
   port: 8081
 
 keycloak:
-  enabled: true
+  enabled: false
   realm: IAMService
   auth-server-url: http://localhost:8080
   client:
@@ -33,6 +33,19 @@ spring:
         format_sql: true
     database: postgresql
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+  mail:
+    host: sandbox.smtp.mailtrap.io
+    port: 2525
+    username: cb9b9078d8efbf
+    password: 472c361eaa061d
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          timeout: 5000
   security:
     oauth2:
       resource-server:

@@ -9,6 +9,7 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management.SearchRespon
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management.UserResponse;
 import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.ManagementImp.ManagementServiceImp;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
@@ -26,7 +27,7 @@ public class ManagementController {
 
     @PreAuthorize("hasPermission('User','Create')")
     @PostMapping
-    public ApiResponse<UserResponse> createNewUser(@ParameterObject UserCreationRequest userCreationRequest) {
+    public ApiResponse<UserResponse> createNewUser(@ParameterObject @Valid UserCreationRequest userCreationRequest) {
         UserResponse newUser = managementServiceImp.createNewUser(userCreationRequest);
 
         return ApiResponseBuilder.createdSuccessResponse("New user created",
@@ -58,14 +59,24 @@ public class ManagementController {
     }
 
     @PreAuthorize("hasPermission('User','Update')")
-    @PatchMapping("/{email}")
+    @PutMapping
     public ApiResponse<UserResponse> updateUser(
-            @PathVariable("email") String emailAddress,
-            @ParameterObject UserUpdateRequest userUpdateRequest) {
-        UserResponse updatedUser = managementServiceImp.updateUser(emailAddress, userUpdateRequest);
+            @ParameterObject @Valid UserUpdateRequest userUpdateRequest) {
+        UserResponse updatedUser = managementServiceImp.updateUser(userUpdateRequest);
 
-        return ApiResponseBuilder.buildSuccessResponse("User with email: " + emailAddress + " updated",
+        return ApiResponseBuilder.buildSuccessResponse("User with email: "
+                        + userUpdateRequest.getEmail()
+                        + " updated",
                 updatedUser);
+    }
+
+    @PutMapping("/password")
+    public ApiResponse<String> changePassword(@RequestParam String email,
+                                              @RequestParam String newPassword) {
+        String changedPassword = managementServiceImp.changePassword(email, newPassword);
+
+        return ApiResponseBuilder.buildSuccessResponse("Password changed",
+                changedPassword);
     }
 
     @PreAuthorize("hasPermission('User','Delete')")

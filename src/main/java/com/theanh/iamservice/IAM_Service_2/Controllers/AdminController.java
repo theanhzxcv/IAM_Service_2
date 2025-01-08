@@ -11,6 +11,7 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api.ApiResponseBuilder;
 import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.AdminImp.PermissionServiceImp;
 import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.AdminImp.RoleServiceImp;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
@@ -28,7 +29,7 @@ public class AdminController {
     @PreAuthorize("hasPermission('Permission','Create')")
     @PostMapping("/permissions")
     public ApiResponse<PermissionResponse> createPermission(
-            @ParameterObject PermissionCreationRequest permissionCreationRequest) {
+            @ParameterObject @Valid PermissionCreationRequest permissionCreationRequest) {
         PermissionResponse newPermission = permissionServiceImp.createPermission(permissionCreationRequest);
 
         return ApiResponseBuilder.createdSuccessResponse("New permission created",
@@ -49,7 +50,7 @@ public class AdminController {
     @PatchMapping("/permissions/{name}")
     public ApiResponse<PermissionResponse> updatePermission(
             @PathVariable("name") String name,
-            @ParameterObject PermissionUpdateRequest permissionUpdateRequest) {
+            @ParameterObject @Valid PermissionUpdateRequest permissionUpdateRequest) {
         PermissionResponse updatedPermission = permissionServiceImp.updatePermission(name, permissionUpdateRequest);
 
         return ApiResponseBuilder.buildSuccessResponse("Updated permissions",
@@ -68,7 +69,7 @@ public class AdminController {
     @PreAuthorize("hasPermission('Role','Create')")
     @PostMapping("/roles")
     public ApiResponse<RoleResponse> createRole(
-            @ParameterObject RoleCreationRequest roleCreationRequest) {
+            @ParameterObject @Valid RoleCreationRequest roleCreationRequest) {
         RoleResponse newRole = roleServiceImp.createRole(roleCreationRequest);
 
         return ApiResponseBuilder.createdSuccessResponse("New role created",
@@ -88,7 +89,7 @@ public class AdminController {
     @PreAuthorize("hasPermission('Role','Update')")
     @PatchMapping("/roles/{name}")
     public ApiResponse<RoleResponse> updateRole(@PathVariable("name") String name,
-                                                @ParameterObject RoleUpdateRequest roleUpdateRequest) {
+                                                @ParameterObject @Valid RoleUpdateRequest roleUpdateRequest) {
         RoleResponse updatedRole = roleServiceImp.updateRole(name, roleUpdateRequest);
 
         return ApiResponseBuilder.buildSuccessResponse("Role updated",

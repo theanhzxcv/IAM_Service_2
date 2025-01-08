@@ -9,8 +9,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserSearchRequest {
+public class UserSearchRequest{
     private String keyword;
-    private int pageIndex = 1;
-    private int pageSize = 10;
+    private int pageIndex;
+    private int pageSize;
 }

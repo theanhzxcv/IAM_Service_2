@@ -1,4 +1,4 @@
-package com.theanh.iamservice.IAM_Service_2.Dtos.Request.Admin;
+package com.theanh.iamservice.IAM_Service_2.Dtos.Request.User;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -6,16 +6,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.List;
-
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class RoleCreationRequest {
-    @NotBlank(message = "FIELD_MISSING")
-    private String name;
+public class PasswordResetRequest {
 
     @NotBlank(message = "FIELD_MISSING")
-    private List<String> permissions;
+    private String resetPassword;
 }

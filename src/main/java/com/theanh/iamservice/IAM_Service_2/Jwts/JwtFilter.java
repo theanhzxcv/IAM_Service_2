@@ -67,7 +67,7 @@ public class JwtFilter extends OncePerRequestFilter {
         String email;
         if (isKeycloakEnabled) {
             email = jwtUtil.extractEmailFrKeycloakJwt(token);
-            if (email == null || SecurityContextHolder.getContext().getAuthentication() != null) {
+            if (email == null) {
                 return null;
             }
         } else {

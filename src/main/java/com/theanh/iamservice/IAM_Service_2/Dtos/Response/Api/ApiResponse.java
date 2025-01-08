@@ -3,7 +3,7 @@ package com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
-import java.sql.Timestamp;
+import java.io.Serializable;
 
 @Getter
 @Setter
@@ -11,10 +11,8 @@ import java.sql.Timestamp;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class ApiResponse<T> {
+public class ApiResponse<T> implements Serializable {
+    protected T data;
     private int code;
-    private String status;
-    private Timestamp timestamp;
     private String message;
-    private T data;
 }

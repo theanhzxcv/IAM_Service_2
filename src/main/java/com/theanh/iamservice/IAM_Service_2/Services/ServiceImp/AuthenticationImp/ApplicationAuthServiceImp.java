@@ -8,12 +8,14 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Authentication.Verificat
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Authentication.AuthResponse;
 import com.theanh.iamservice.IAM_Service_2.Entities.UserActivityEntity;
 import com.theanh.iamservice.IAM_Service_2.Entities.UserEntity;
+import com.theanh.iamservice.IAM_Service_2.Entities.UserRole;
 import com.theanh.iamservice.IAM_Service_2.Exception.AppException;
 import com.theanh.iamservice.IAM_Service_2.Exception.ErrorCode;
 import com.theanh.iamservice.IAM_Service_2.Jwts.JwtUtil;
 import com.theanh.iamservice.IAM_Service_2.Mappers.UserMapper;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserActivityRepository;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserRepository;
+import com.theanh.iamservice.IAM_Service_2.Repositories.UserRoleRepository;
 import com.theanh.iamservice.IAM_Service_2.Services.IAuthService;
 import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.Blacklist.JwtBlacklistService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,6 +33,7 @@ public class ApplicationAuthServiceImp implements IAuthService {
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
+    private final UserRoleRepository userRoleRepository;
     private final AuditorAwareImp auditorAwareImp;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
@@ -92,7 +95,8 @@ public class ApplicationAuthServiceImp implements IAuthService {
 
     @Override
     public String registration(SignUpRequest signUpRequest, HttpServletRequest request) {
-        if (userRepository.findByEmailAddress(signUpRequest.getEmailAddress()).isPresent()) {
+        if (userRepository.findByUsername(signUpRequest.getUsername()).isPresent()
+                || userRepository.findByEmailAddress(signUpRequest.getEmailAddress()).isPresent()) {
             throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
@@ -107,6 +111,12 @@ public class ApplicationAuthServiceImp implements IAuthService {
             userEntity.setLastModifiedAt(LocalDateTime.now());
 
             userRepository.save(userEntity);
+
+            UserRole userRole = UserRole.builder()
+                    .userId(userEntity.getId())
+                    .roleName("USER")
+                    .build();
+            userRoleRepository.save(userRole);
 
             UserActivityEntity userActivityEntity = UserActivityEntity
                     .builder()
@@ -127,6 +137,37 @@ public class ApplicationAuthServiceImp implements IAuthService {
     @Override
     public AuthResponse verification(VerificationRequest verificationRequest) {
         return null;
+    }
+
+    @Override
+    public AuthResponse refreshToken(String refreshToken) {
+        final String userEmail;
+        try {
+            userEmail = jwtUtil.extractEmailFrSystemJwt(refreshToken);
+        } catch (Exception e) {
+            throw new RuntimeException("...");
+        }
+
+        UserEntity user = userRepository.findByEmailAddress(userEmail)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+//        if (!jwtUtil.isSystemTokenValid(refreshToken, user)) {
+//            throw new RuntimeException("Token invalid");
+//        }
+
+        if (jwtBlacklistService.isTokenBlacklisted(refreshToken)) {
+            throw new RuntimeException("Token invalid");
+        }
+
+        try {
+            String accessToken = jwtUtil.generateAccessToken(user);
+            return AuthResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .build();
+        } catch (Exception e) {
+            throw new RuntimeException("Error happened, please try again.");
+        }
     }
 
     @Override

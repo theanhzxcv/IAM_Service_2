@@ -14,5 +14,7 @@ public interface IAuthService {
 
     AuthResponse verification(VerificationRequest verificationRequest);
 
+    AuthResponse refreshToken(String refreshToken);
+
     String logout(SignOutRequest signOutRequest, HttpServletRequest request);
 }

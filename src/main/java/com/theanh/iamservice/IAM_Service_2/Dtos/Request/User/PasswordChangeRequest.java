@@ -1,4 +1,4 @@
-package com.theanh.iamservice.IAM_Service_2.Dtos.Request.Admin;
+package com.theanh.iamservice.IAM_Service_2.Dtos.Request.User;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -10,13 +10,14 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class PermissionUpdateRequest {
-    @NotBlank(message = "FIELD_MISSING")
-    private String resource;
+public class PasswordChangeRequest {
 
     @NotBlank(message = "FIELD_MISSING")
-    private String scope;
+    private String oldPassword;
 
     @NotBlank(message = "FIELD_MISSING")
-    private String isDeleted;
+    private String newPassword;
+
+    @NotBlank(message = "FIELD_MISSING")
+    private String confirmationPassword;
 }

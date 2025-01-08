@@ -15,9 +15,11 @@ public interface IManagementService {
 
     Page<SearchResponse> findUserByKeyWord(UserSearchRequest userSearchRequest);
 
+    String changePassword(String emailAddress, String newPassword);
+
 //    String resetPassword()
 
-    UserResponse updateUser(String emailAddress, UserUpdateRequest userUpdateRequest);
+    UserResponse updateUser(UserUpdateRequest userUpdateRequest);
 
     UserResponse banUser(String emailAddress);
 

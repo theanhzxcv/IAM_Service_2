@@ -35,7 +35,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         UserEntity userEntity = userRepository.findByEmailAddress(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        // Fetch roles and permissions for the user
         Collection<? extends GrantedAuthority> authorities = getAuthoritiesForUser(userEntity);
 
         return new CustomUserDetails(userEntity, authorities);

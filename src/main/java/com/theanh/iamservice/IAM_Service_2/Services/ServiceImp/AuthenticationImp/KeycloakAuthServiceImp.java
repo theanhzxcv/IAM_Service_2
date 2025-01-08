@@ -6,14 +6,18 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Authentication.SignOutRe
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Authentication.SignUpRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Authentication.VerificationRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Authentication.AuthResponse;
+import com.theanh.iamservice.IAM_Service_2.Entities.RoleEntity;
 import com.theanh.iamservice.IAM_Service_2.Entities.UserActivityEntity;
 import com.theanh.iamservice.IAM_Service_2.Entities.UserEntity;
+import com.theanh.iamservice.IAM_Service_2.Entities.UserRole;
 import com.theanh.iamservice.IAM_Service_2.Exception.AppException;
 import com.theanh.iamservice.IAM_Service_2.Exception.ErrorCode;
 import com.theanh.iamservice.IAM_Service_2.Keycloak.KeycloakProperties;
 import com.theanh.iamservice.IAM_Service_2.Mappers.UserMapper;
+import com.theanh.iamservice.IAM_Service_2.Repositories.RoleRepository;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserActivityRepository;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserRepository;
+import com.theanh.iamservice.IAM_Service_2.Repositories.UserRoleRepository;
 import com.theanh.iamservice.IAM_Service_2.Services.IAuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +39,7 @@ import java.util.*;
 public class KeycloakAuthServiceImp implements IAuthService {
     private final RestTemplate restTemplate;
     private final UserRepository userRepository;
+    private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditorAwareImp auditorAwareImp;
     private final UserMapper userMapper;
@@ -204,11 +209,15 @@ public class KeycloakAuthServiceImp implements IAuthService {
 
             userEntity.setCreatedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));
             userEntity.setCreatedAt(LocalDateTime.now());
-
             userEntity.setLastModifiedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));
             userEntity.setLastModifiedAt(LocalDateTime.now());
-
             userRepository.save(userEntity);
+
+            UserRole userRole = UserRole.builder()
+                    .userId(userEntity.getId())
+                    .roleName("USER")
+                    .build();
+            userRoleRepository.save(userRole);
 
             UserActivityEntity userActivityEntity = UserActivityEntity
                     .builder()
@@ -232,6 +241,40 @@ public class KeycloakAuthServiceImp implements IAuthService {
     @Override
     public AuthResponse verification(VerificationRequest verificationRequest) {
         return null;
+    }
+
+    @Override
+    public AuthResponse refreshToken(String refreshToken) {
+        String tokenUrl = keycloakProperties.getAuthServerUrl()
+                + "/realms/"
+                + keycloakProperties.getRealm()
+                + "/protocol/openid-connect/token";
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("grant_type", "refresh_token");
+        body.add("refresh_token", refreshToken);
+        body.add("client_id", keycloakProperties.getClientId());
+        body.add("client_secret", keycloakProperties.getClientSecret());
+
+        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+
+        ResponseEntity<Map> response = restTemplate.exchange(tokenUrl, HttpMethod.POST, request, Map.class);
+
+        if (response.getStatusCode() == HttpStatus.OK) {
+            Map<String, String> responseBody = response.getBody();
+            return AuthResponse
+                    .builder()
+                    .accessToken(responseBody.get("access_token"))
+                    .refreshToken(responseBody.get("refresh_token"))
+                    .build();
+        } else {
+            throw new RuntimeException("Failed to refresh token from Keycloak.");
+        }
     }
 
     @Override
