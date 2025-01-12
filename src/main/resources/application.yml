@@ -6,10 +6,14 @@ info:
 server:
   port: 8081
 
+#storage-service:
+#  url: http://localhost:8082
+
 keycloak:
-  enabled: false
+  enabled: true
   realm: IAMService
   auth-server-url: http://localhost:8080
+#  resource: storage-service-api
   client:
     id: iam-service-api
     secret: lkbRJLrdzVuIr47DQJfBwmiXzbA6hdkJ
@@ -48,6 +52,16 @@ spring:
           timeout: 5000
   security:
     oauth2:
+      client:
+        registration:
+          google:
+            client-id: 634041233114-cbhbkjk9pnro4pp22oekq3kgltov973n.apps.googleusercontent.com
+            client-secret: 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
+            scope:
+              - openid
+              - email
+              - profile
+            redirect-uri: "http://localhost:8081/login/oauth2/code/google"
       resource-server:
         jwt:
           issuer-uri: http://localhost:8080/realms/IAMService

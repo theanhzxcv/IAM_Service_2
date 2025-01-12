@@ -6,6 +6,7 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Management.UserSearchReq
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Management.UserUpdateRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Admin.PermissionResponse;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Admin.RoleResponse;
+import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api.PageApiResponse;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management.SearchResponse;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management.UserResponse;
 import com.theanh.iamservice.IAM_Service_2.Entities.*;
@@ -27,6 +28,7 @@ import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
@@ -86,18 +88,6 @@ public class ManagementServiceImp implements IManagementService {
             throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        UserEntity userEntity = saveUserEntity(userCreationRequest);
-
-        List<RoleEntity> validRoles = getValidRoles(userCreationRequest);
-
-        assignRolesToUser(userEntity, validRoles);
-
-        List<RoleResponse> roleResponses = mapRolesToRoleResponses(validRoles);
-
-        return userMapper.toUserResponse(userEntity, roleResponses);
-    }
-
-    private UserEntity saveUserEntity(UserCreationRequest userCreationRequest) {
         UserEntity userEntity = userMapper.toUserEntity(userCreationRequest);
         userEntity.setPassword(passwordEncoder.encode(userCreationRequest.getPassword()));
         saveUserToKeycloak(userCreationRequest.getUsername(),
@@ -106,13 +96,19 @@ public class ManagementServiceImp implements IManagementService {
                 userCreationRequest.getFirstname(),
                 userCreationRequest.getLastname());
 
-        String currentAuditor = auditorAwareImp.getCurrentAuditor().orElse("Unknown");
-        userEntity.setCreatedBy(currentAuditor);
+        userEntity.setCreatedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));
         userEntity.setCreatedAt(LocalDateTime.now());
-        userEntity.setLastModifiedBy(currentAuditor);
+        userEntity.setLastModifiedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));
         userEntity.setLastModifiedAt(LocalDateTime.now());
+        userRepository.save(userEntity);
 
-        return userRepository.save(userEntity);
+        List<RoleEntity> validRoles = getValidRoles(userCreationRequest);
+
+        assignRolesToUser(userEntity, validRoles);
+
+        List<RoleResponse> roleResponses = mapRolesToRoleResponses(validRoles);
+
+        return userMapper.toUserResponse(userEntity, roleResponses);
     }
 
     private void saveUserToKeycloak(String username,
@@ -126,20 +122,20 @@ public class ManagementServiceImp implements IManagementService {
                 + keycloakProperties.getRealm()
                 + "/users";
 
-        Map<String, Object> userPayload = Map.of(
-                "username", username,
-                "email", email,
-                "firstName", firstname,
-                "lastName", lastname,
-                "enabled", true,
-                "credentials", List.of(
-                        Map.of(
-                                "type", "password",
-                                "value", password,
-                                "temporary", false
-                        )
-                )
-        );
+        // Create MultiValueMap payload
+        MultiValueMap<String, Object> userPayload = new LinkedMultiValueMap<>();
+        userPayload.add("username", username);
+        userPayload.add("email", email);
+        userPayload.add("firstName", firstname);
+        userPayload.add("lastName", lastname);
+        userPayload.add("enabled", true);
+
+        // Add credentials as a nested map
+        Map<String, Object> credentials = new HashMap<>();
+        credentials.put("type", "password");
+        credentials.put("value", password);
+        credentials.put("temporary", false);
+        userPayload.add("credentials", List.of(credentials));
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -154,13 +150,14 @@ public class ManagementServiceImp implements IManagementService {
             );
 
             if (!responseBody.getStatusCode().is2xxSuccessful()) {
-//                throw new AppException(ErrorCode.REGISTRATION_FAILED);
+                throw new AppException(ErrorCode.REGISTRATION_FAILED);
             }
 
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 409) {
                 throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
             }
+            throw new AppException(ErrorCode.REGISTRATION_FAILED);
         }
     }
 
@@ -169,7 +166,7 @@ public class ManagementServiceImp implements IManagementService {
 
         if (roles.size() != userCreationRequest.getRoles().size()) {
             RoleEntity defaultRole = roleRepository.findByName("USER")
-                    .orElseThrow(() -> new RuntimeException("Default role USER does not exist"));
+                    .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
             roles.add(defaultRole);
         }
 
@@ -178,7 +175,7 @@ public class ManagementServiceImp implements IManagementService {
                 .collect(Collectors.toList());
 
         if (validRoles.size() != roles.size()) {
-            throw new RuntimeException("Some roles are marked as deleted");
+            throw new AppException(ErrorCode.ROLE_DELETED);
         }
 
         return validRoles;
@@ -212,8 +209,8 @@ public class ManagementServiceImp implements IManagementService {
     }
 
     @Override
-    public Page<UserResponse> allUsers(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
+    public Page<UserResponse> allUsers(int pageIndex, int pageSize) {
+        Pageable pageable = PageRequest.of(pageIndex, pageSize);
 
         Page<UserEntity> userPage = userRepository.findAll(pageable);
 
@@ -232,7 +229,7 @@ public class ManagementServiceImp implements IManagementService {
 
         return new PageImpl<>(
                 userResponses,
-                PageRequest.of(userSearchRequest.getPageIndex() - 1, userSearchRequest.getPageSize()),
+                PageRequest.of(userSearchRequest.getPageIndex(), userSearchRequest.getPageSize()),
                 totalCount
         );
     }
@@ -389,7 +386,7 @@ public class ManagementServiceImp implements IManagementService {
 
         if (roles.size() != roleNames.size()) {
             RoleEntity defaultRole = roleRepository.findByName("USER")
-                    .orElseThrow(() -> new RuntimeException("Default role USER does not exist"));
+                    .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
             roles.add(defaultRole);
         }
 
@@ -398,7 +395,7 @@ public class ManagementServiceImp implements IManagementService {
                 .toList();
 
         if (validRoles.size() != roles.size()) {
-            throw new RuntimeException("Some roles are marked as deleted");
+            throw new AppException(ErrorCode.ROLE_DELETED);
         }
 
         List<UserRole> userRoles = validRoles.stream()

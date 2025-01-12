@@ -65,7 +65,6 @@ public class ApplicationAuthServiceImp implements IAuthService {
         if (userEntity.isBanned() || userEntity.isDeleted()) {
             throw new AppException(ErrorCode.USER_DEACTIVATED);
         }
-
         if (!passwordEncoder.matches(signInRequest.getPassword(), userEntity.getPassword())) {
             throw new AppException(ErrorCode.AUTHENTICATION_FAILED);
         }
@@ -145,18 +144,14 @@ public class ApplicationAuthServiceImp implements IAuthService {
         try {
             userEmail = jwtUtil.extractEmailFrSystemJwt(refreshToken);
         } catch (Exception e) {
-            throw new RuntimeException("...");
+            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
 
         UserEntity user = userRepository.findByEmailAddress(userEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-//        if (!jwtUtil.isSystemTokenValid(refreshToken, user)) {
-//            throw new RuntimeException("Token invalid");
-//        }
-
         if (jwtBlacklistService.isTokenBlacklisted(refreshToken)) {
-            throw new RuntimeException("Token invalid");
+            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
 
         try {
@@ -166,7 +161,7 @@ public class ApplicationAuthServiceImp implements IAuthService {
                     .refreshToken(refreshToken)
                     .build();
         } catch (Exception e) {
-            throw new RuntimeException("Error happened, please try again.");
+            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -191,6 +186,6 @@ public class ApplicationAuthServiceImp implements IAuthService {
         long refreshTokenExpirationDuration = refreshTokenExpiration.getTime() - System.currentTimeMillis();
         jwtBlacklistService.blacklistedRefreshToken(signOutRequest.getRefreshToken(), refreshTokenExpirationDuration);
 
-        return "Log out successful";
+        return "Log out successfully, See you later!";
     }
 }

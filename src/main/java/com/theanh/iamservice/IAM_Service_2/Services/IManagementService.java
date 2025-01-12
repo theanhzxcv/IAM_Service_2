@@ -7,11 +7,13 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management.SearchRespon
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Management.UserResponse;
 import org.springframework.data.domain.Page;
 
+import java.util.List;
+
 public interface IManagementService {
 
     UserResponse createNewUser(UserCreationRequest userCreationRequest);
 
-    Page<UserResponse> allUsers(int page, int size);
+    Page<UserResponse> allUsers(int pageIndex, int pageSize);
 
     Page<SearchResponse> findUserByKeyWord(UserSearchRequest userSearchRequest);
 

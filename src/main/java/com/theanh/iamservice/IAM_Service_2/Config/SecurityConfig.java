@@ -39,11 +39,12 @@ public class SecurityConfig {
                                 "/api/auth/sign-in",
                                 "/api/auth/sign-up",
                                 "/api/profile/password/forgot"
-
                         )
                         .permitAll()
                         .anyRequest()
-                        .authenticated());
+                        .authenticated())
+                .oauth2Login(oauth2
+                        -> oauth2.defaultSuccessUrl("/api/auth/home", true));
 
         if (isKeycloakEnabled) {
             http

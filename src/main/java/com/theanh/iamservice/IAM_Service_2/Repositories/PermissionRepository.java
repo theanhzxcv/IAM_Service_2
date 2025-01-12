@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 
 @Repository
@@ -13,4 +14,6 @@ public interface PermissionRepository extends JpaRepository<PermissionEntity, St
     Optional<PermissionEntity> findByResourceAndScope(String resource, String scope);
 
     Optional<PermissionEntity> findByName(String name);
+
+    List<PermissionEntity> findByNameIn(Set<String> permissionNames);
 }

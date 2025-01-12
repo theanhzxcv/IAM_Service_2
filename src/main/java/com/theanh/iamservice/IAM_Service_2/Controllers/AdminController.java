@@ -7,7 +7,7 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Admin.RoleUpdateRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Admin.PermissionResponse;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Admin.RoleResponse;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api.ApiResponse;
-import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api.ApiResponseBuilder;
+import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api.PageApiResponse;
 import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.AdminImp.PermissionServiceImp;
 import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.AdminImp.RoleServiceImp;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,18 +32,20 @@ public class AdminController {
             @ParameterObject @Valid PermissionCreationRequest permissionCreationRequest) {
         PermissionResponse newPermission = permissionServiceImp.createPermission(permissionCreationRequest);
 
-        return ApiResponseBuilder.createdSuccessResponse("New permission created",
-                newPermission);
+        return ApiResponse.of(newPermission)
+                .success("New permission created.");
     }
 
     @PreAuthorize("hasPermission('Permission','Read')")
     @GetMapping("/permissions")
-    public ApiResponse<Page<PermissionResponse>> allPermission(@RequestParam int page,
-                                                               @RequestParam int size) {
-        Page<PermissionResponse> allPermission = permissionServiceImp.allPermissions(page, size);
+    public PageApiResponse<PermissionResponse> allPermission(@RequestParam int pageIndex,
+                                                               @RequestParam int pageSize) {
+        Page<PermissionResponse> allPermission = permissionServiceImp.allPermissions(pageIndex, pageSize);
 
-        return ApiResponseBuilder.buildSuccessResponse("All permissions",
-                allPermission);
+        return PageApiResponse.of(allPermission.getContent(),
+                allPermission.getNumber(),
+                allPermission.getSize(),
+                allPermission.getTotalElements());
     }
 
     @PreAuthorize("hasPermission('Permission','Update')")
@@ -53,8 +55,8 @@ public class AdminController {
             @ParameterObject @Valid PermissionUpdateRequest permissionUpdateRequest) {
         PermissionResponse updatedPermission = permissionServiceImp.updatePermission(name, permissionUpdateRequest);
 
-        return ApiResponseBuilder.buildSuccessResponse("Updated permissions",
-                updatedPermission);
+        return ApiResponse.of(updatedPermission)
+                .success("Permission updated.");
     }
 
     @PreAuthorize("hasPermission('Permission','Delete')")
@@ -62,8 +64,8 @@ public class AdminController {
     public ApiResponse<String> deletePermission(@PathVariable("name") String name) {
         String deletedPermission = permissionServiceImp.deletePermission(name);
 
-        return ApiResponseBuilder.buildSuccessResponse("Permission deleted",
-                deletedPermission);
+        return ApiResponse.of(deletedPermission)
+                .success("Permission deleted.");
     }
 
     @PreAuthorize("hasPermission('Role','Create')")
@@ -72,18 +74,20 @@ public class AdminController {
             @ParameterObject @Valid RoleCreationRequest roleCreationRequest) {
         RoleResponse newRole = roleServiceImp.createRole(roleCreationRequest);
 
-        return ApiResponseBuilder.createdSuccessResponse("New role created",
-                newRole);
+        return ApiResponse.of(newRole)
+                .success("New role created");
     }
 
     @PreAuthorize("hasPermission('Role','Read')")
     @GetMapping("/roles")
-    public ApiResponse<Page<RoleResponse>> allRoles(@RequestParam int page,
-                                                    @RequestParam int size) {
-        Page<RoleResponse> allRoles = roleServiceImp.allRoles(page, size);
+    public PageApiResponse<RoleResponse> allRoles(@RequestParam int pageIndex,
+                                                    @RequestParam int pageSize) {
+        Page<RoleResponse> allRoles = roleServiceImp.allRoles(pageIndex, pageSize);
 
-        return ApiResponseBuilder.buildSuccessResponse("All roles",
-                allRoles);
+        return PageApiResponse.of(allRoles.getContent(),
+                        allRoles.getNumber(),
+                        allRoles.getSize(),
+                        allRoles.getTotalElements());
     }
 
     @PreAuthorize("hasPermission('Role','Update')")
@@ -92,8 +96,8 @@ public class AdminController {
                                                 @ParameterObject @Valid RoleUpdateRequest roleUpdateRequest) {
         RoleResponse updatedRole = roleServiceImp.updateRole(name, roleUpdateRequest);
 
-        return ApiResponseBuilder.buildSuccessResponse("Role updated",
-                updatedRole);
+        return ApiResponse.of(updatedRole)
+                .success("Role updated");
     }
 
     @PreAuthorize("hasPermission('Role','Delete')")
@@ -101,7 +105,6 @@ public class AdminController {
     public ApiResponse<String> deleteRole(@PathVariable("name") String name) {
         String deletedRole = roleServiceImp.deleteRole(name);
 
-        return ApiResponseBuilder.buildSuccessResponse("Role deleted",
-                deletedRole);
+        return ApiResponse.of(deletedRole).success("Role deleted");
     }
 }

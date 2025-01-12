@@ -93,6 +93,10 @@ public class UserServiceImp implements IUserService {
             throw new AppException(ErrorCode.PASSWORD_MISMATCH);
         }
 
+        userEntity.setPassword(passwordEncoder.encode(passwordChangeRequest.getNewPassword()));
+
+        userRepository.save(userEntity);
+
         return "Password changed successfully.";
     }
 

@@ -29,16 +29,13 @@ public class PermissionServiceImp implements IPermissionService {
     public PermissionResponse createPermission(PermissionCreationRequest permissionCreationRequest) {
         if (permissionRepository.findByResourceAndScope(permissionCreationRequest.getResource(),
                 permissionCreationRequest.getScope()).isPresent()) {
-            throw new RuntimeException("Permission exists");
+            throw new AppException(ErrorCode.PERMISSION_ALREADY_EXISTS);
         }
 
         PermissionEntity permissionEntity = permissionMapper.toPermissionEntity(permissionCreationRequest);
-        String currentAuditor = auditorAwareImp.getCurrentAuditor().orElse("Unknown");
-
-        permissionEntity.setCreatedBy(currentAuditor);
+        permissionEntity.setCreatedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));
         permissionEntity.setCreatedAt(LocalDateTime.now());
-
-        permissionEntity.setLastModifiedBy(currentAuditor);
+        permissionEntity.setLastModifiedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));
         permissionEntity.setLastModifiedAt(LocalDateTime.now());
         permissionRepository.save(permissionEntity);
 
@@ -48,34 +45,25 @@ public class PermissionServiceImp implements IPermissionService {
     @Override
     public PermissionResponse updatePermission(String name, PermissionUpdateRequest permissionUpdateRequest) {
         PermissionEntity permissionEntity = permissionRepository.findByName(name)
-                .orElseThrow(() -> new RuntimeException("Permission not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.PERMISSION_NOT_FOUND));
 
         if (permissionUpdateRequest == null) {
             throw new AppException(ErrorCode.FIELD_MISSING);
         }
 
-        if (permissionUpdateRequest.getResource() != null) {
-            permissionEntity.setResource(permissionUpdateRequest.getResource());
-        }
-        if (permissionUpdateRequest.getScope() != null) {
-            permissionEntity.setScope(permissionUpdateRequest.getScope());
-        }
-        if ("false".equals(permissionUpdateRequest.getIsDeleted())) {
-            permissionEntity.setDeleted(false);
-        }
-
-        String currentAuditor = auditorAwareImp.getCurrentAuditor().orElse("Unknown");
-        permissionEntity.setLastModifiedBy(currentAuditor);
+        permissionEntity.setResource(permissionUpdateRequest.getResource());
+        permissionEntity.setScope(permissionUpdateRequest.getScope());
+        permissionEntity.setDeleted(!"No".equalsIgnoreCase(permissionUpdateRequest.getIsDeleted()));
+        permissionEntity.setLastModifiedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));
         permissionEntity.setLastModifiedAt(LocalDateTime.now());
 
         PermissionEntity updatedPermission = permissionRepository.save(permissionEntity);
         return permissionMapper.toPermissionResponse(updatedPermission);
     }
 
-
     @Override
-    public Page<PermissionResponse> allPermissions(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
+    public Page<PermissionResponse> allPermissions(int pageIndex, int pageSize) {
+        Pageable pageable = PageRequest.of(pageIndex, pageSize);
         Page<PermissionEntity> permissionsPage = permissionRepository.findAll(pageable);
 
         return permissionsPage.map(permissionMapper::toPermissionResponse);
@@ -84,10 +72,10 @@ public class PermissionServiceImp implements IPermissionService {
     @Override
     public String deletePermission(String name) {
         PermissionEntity permissionEntity = permissionRepository.findByName(name)
-                .orElseThrow(() -> new RuntimeException("Not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.PERMISSION_NOT_FOUND));
 
         permissionEntity.setDeleted(true);
         permissionRepository.save(permissionEntity);
-        return "Permission deleted";
+        return "Permission deleted successfully";
     }
 }

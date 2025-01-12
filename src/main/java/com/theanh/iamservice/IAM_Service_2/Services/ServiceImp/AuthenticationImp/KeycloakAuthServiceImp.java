@@ -12,6 +12,7 @@ import com.theanh.iamservice.IAM_Service_2.Entities.UserEntity;
 import com.theanh.iamservice.IAM_Service_2.Entities.UserRole;
 import com.theanh.iamservice.IAM_Service_2.Exception.AppException;
 import com.theanh.iamservice.IAM_Service_2.Exception.ErrorCode;
+import com.theanh.iamservice.IAM_Service_2.Jwts.JwtUtil;
 import com.theanh.iamservice.IAM_Service_2.Keycloak.KeycloakProperties;
 import com.theanh.iamservice.IAM_Service_2.Mappers.UserMapper;
 import com.theanh.iamservice.IAM_Service_2.Repositories.RoleRepository;
@@ -19,6 +20,7 @@ import com.theanh.iamservice.IAM_Service_2.Repositories.UserActivityRepository;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserRepository;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserRoleRepository;
 import com.theanh.iamservice.IAM_Service_2.Services.IAuthService;
+import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.Blacklist.JwtBlacklistService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
@@ -37,13 +39,15 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class KeycloakAuthServiceImp implements IAuthService {
+    private final JwtUtil jwtUtil;
+    private final UserMapper userMapper;
     private final RestTemplate restTemplate;
     private final UserRepository userRepository;
-    private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditorAwareImp auditorAwareImp;
-    private final UserMapper userMapper;
+    private final UserRoleRepository userRoleRepository;
     private final KeycloakProperties keycloakProperties;
+    private final JwtBlacklistService jwtBlacklistService;
     private final UserActivityRepository userActivityRepository;
 
     public String getUserIp(HttpServletRequest request) {
@@ -77,62 +81,69 @@ public class KeycloakAuthServiceImp implements IAuthService {
                 + keycloakProperties.getRealm()
                 + "/protocol/openid-connect/token";
 
-        Map<String, String> body = new HashMap<>();
-        body.put("grant_type", "password");
-        body.put("client_id", keycloakProperties.getClientId());
-        body.put("client_secret", keycloakProperties.getClientSecret());
-        body.put("username", signInRequest.getEmailAddress());
-        body.put("password", signInRequest.getPassword());
-
+        MultiValueMap<String, String> loginRequestBody = createLoginRequestBody(signInRequest);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        String formBody = body.entrySet()
-                .stream()
-                .map(entry -> entry.getKey() + "=" + entry.getValue())
-                .reduce((a, b) -> a + "&" + b)
-                .orElse("");
+        Map<String, Object> responseBody = sendLoginRequest(loginUrl, loginRequestBody, headers);
+        String accessToken = (String) responseBody.get("access_token");
+        String refreshToken = (String) responseBody.get("refresh_token");
 
-        HttpEntity<String> requestEntity = new HttpEntity<>(formBody, headers);
+        logUserActivity(signInRequest.getEmailAddress(), request, "Sign In");
+
+        return buildAuthResponse(accessToken, refreshToken);
+    }
+
+    private MultiValueMap<String, String> createLoginRequestBody(SignInRequest signInRequest) {
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("grant_type", "password");
+        body.add("client_id", keycloakProperties.getClientId());
+        body.add("client_secret", keycloakProperties.getClientSecret());
+        body.add("username", signInRequest.getEmailAddress());
+        body.add("password", signInRequest.getPassword());
+        return body;
+    }
+
+    private Map<String, Object> sendLoginRequest(String url, MultiValueMap<String, String> body, HttpHeaders headers) {
+        HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(body, headers);
         try {
             ResponseEntity<Map> response = restTemplate.exchange(
-                    loginUrl,
+                    url,
                     HttpMethod.POST,
                     requestEntity,
                     Map.class);
 
-            Map<String, Object> responseBody = response.getBody();
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                String accessToken = (String) responseBody.get("access_token");
-                String refreshToken = (String) responseBody.get("refresh_token");
-
-                UserActivityEntity userActivityEntity = UserActivityEntity
-                        .builder()
-                        .ipAddress(getUserIp(request))
-                        .emailAddress(signInRequest.getEmailAddress())
-                        .activity("Sign In")
-                        .logAt(LocalDateTime.now())
-                        .build();
-
-                userActivityRepository.save(userActivityEntity);
-
-                return AuthResponse
-                        .builder()
-                        .accessToken(accessToken)
-                        .refreshToken(refreshToken)
-                        .build();
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody();
             } else {
-                throw new RuntimeException("Unexpected error occurred");
+                throw new AppException(ErrorCode.AUTHENTICATION_FAILED);
             }
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 401) {
                 throw new AppException(ErrorCode.AUTHENTICATION_FAILED);
             }
-            throw new AppException(ErrorCode.AUTHENTICATION_FAILED);
-        } catch (Exception e) {
             throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private void logUserActivity(String emailAddress, HttpServletRequest request, String activity) {
+        UserActivityEntity userActivityEntity = UserActivityEntity
+                .builder()
+                .ipAddress(getUserIp(request))
+                .emailAddress(emailAddress)
+                .activity(activity)
+                .logAt(LocalDateTime.now())
+                .build();
+
+        userActivityRepository.save(userActivityEntity);
+    }
+
+    private AuthResponse buildAuthResponse(String accessToken, String refreshToken) {
+        return AuthResponse
+                .builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .build();
     }
 
     private String getAdminToken() {
@@ -176,23 +187,39 @@ public class KeycloakAuthServiceImp implements IAuthService {
                 + keycloakProperties.getRealm()
                 + "/users";
 
-        Map<String, Object> userPayload = Map.of(
-                "username", signUpRequest.getUsername(),
-                "email", signUpRequest.getEmailAddress(),
-                "firstName", signUpRequest.getFirstname(),
-                "lastName", signUpRequest.getLastname(),
-                "enabled", true,
-                "credentials", List.of(
-                        Map.of(
-                                "type", "password",
-                                "value", signUpRequest.getPassword(),
-                                "temporary", false
-                        )
-                )
-        );
+        MultiValueMap<String, Object> userPayload = createUserPayload(signUpRequest);
+        registerUserInKeycloak(adminToken, registerUrl, userPayload);
+
+        UserEntity userEntity = saveUserInDatabase(signUpRequest);
+        assignDefaultRole(userEntity);
+        logUserActivity(signUpRequest, request);
+
+        return "Sign up successfully! Welcome, " + signUpRequest.getLastname()
+                + " " + signUpRequest.getFirstname() + "!";
+    }
+
+    private MultiValueMap<String, Object> createUserPayload(SignUpRequest signUpRequest) {
+        MultiValueMap<String, Object> userPayload = new LinkedMultiValueMap<>();
+        userPayload.add("username", signUpRequest.getUsername());
+        userPayload.add("email", signUpRequest.getEmailAddress());
+        userPayload.add("firstName", signUpRequest.getFirstname());
+        userPayload.add("lastName", signUpRequest.getLastname());
+        userPayload.add("enabled", true);
+
+        Map<String, Object> credentials = new HashMap<>();
+        credentials.put("type", "password");
+        credentials.put("value", signUpRequest.getPassword());
+        credentials.put("temporary", false);
+        userPayload.add("credentials", List.of(credentials));
+
+        return userPayload;
+    }
+
+    private void registerUserInKeycloak(String adminToken, String registerUrl, MultiValueMap<String, Object> userPayload) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(adminToken);
+
         try {
             ResponseEntity<String> responseBody = restTemplate.postForEntity(
                     registerUrl,
@@ -203,39 +230,43 @@ public class KeycloakAuthServiceImp implements IAuthService {
             if (!responseBody.getStatusCode().is2xxSuccessful()) {
                 throw new AppException(ErrorCode.REGISTRATION_FAILED);
             }
-
-            UserEntity userEntity = userMapper.toUserEntity(signUpRequest);
-            userEntity.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
-
-            userEntity.setCreatedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));
-            userEntity.setCreatedAt(LocalDateTime.now());
-            userEntity.setLastModifiedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));
-            userEntity.setLastModifiedAt(LocalDateTime.now());
-            userRepository.save(userEntity);
-
-            UserRole userRole = UserRole.builder()
-                    .userId(userEntity.getId())
-                    .roleName("USER")
-                    .build();
-            userRoleRepository.save(userRole);
-
-            UserActivityEntity userActivityEntity = UserActivityEntity
-                    .builder()
-                    .ipAddress(getUserIp(request))
-                    .emailAddress(signUpRequest.getEmailAddress())
-                    .activity("Sign Up")
-                    .logAt(LocalDateTime.now())
-                    .build();
-
-            userActivityRepository.save(userActivityEntity);
-
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 409) {
                 throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
             }
+            throw new AppException(ErrorCode.REGISTRATION_FAILED);
         }
-        return "Sign up successfully! Welcome, " + signUpRequest.getLastname()
-                + " " + signUpRequest.getFirstname() + "!";
+    }
+
+    private UserEntity saveUserInDatabase(SignUpRequest signUpRequest) {
+        UserEntity userEntity = userMapper.toUserEntity(signUpRequest);
+        userEntity.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
+        userEntity.setCreatedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));
+        userEntity.setCreatedAt(LocalDateTime.now());
+        userEntity.setLastModifiedBy(auditorAwareImp.getCurrentAuditor().orElse("Unknown"));
+        userEntity.setLastModifiedAt(LocalDateTime.now());
+        userRepository.save(userEntity);
+
+        return userEntity;
+    }
+
+    private void assignDefaultRole(UserEntity userEntity) {
+        UserRole userRole = UserRole.builder()
+                .userId(userEntity.getId())
+                .roleName("USER")
+                .build();
+        userRoleRepository.save(userRole);
+    }
+
+    private void logUserActivity(SignUpRequest signUpRequest, HttpServletRequest request) {
+        UserActivityEntity userActivityEntity = UserActivityEntity
+                .builder()
+                .ipAddress(getUserIp(request))
+                .emailAddress(signUpRequest.getEmailAddress())
+                .activity("Sign Up")
+                .logAt(LocalDateTime.now())
+                .build();
+        userActivityRepository.save(userActivityEntity);
     }
 
     @Override
@@ -249,8 +280,6 @@ public class KeycloakAuthServiceImp implements IAuthService {
                 + "/realms/"
                 + keycloakProperties.getRealm()
                 + "/protocol/openid-connect/token";
-
-        RestTemplate restTemplate = new RestTemplate();
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -277,57 +306,38 @@ public class KeycloakAuthServiceImp implements IAuthService {
         }
     }
 
+    //error
     @Override
     public String logout(SignOutRequest signOutRequest, HttpServletRequest request) {
-        String postLogoutRedirectUri = "http://localhost:8081";
-        String keycloakLogoutUrl =
-                keycloakProperties.getAuthServerUrl()
+        String logoutUrl = keycloakProperties.getAuthServerUrl()
                 + "/realms/"
                 + keycloakProperties.getRealm()
                 + "/protocol/openid-connect/logout";
 
-        if (signOutRequest.getRefreshToken() != null) {
-            revokeRefreshToken(signOutRequest.getRefreshToken());
-        }
-
-        Jwt jwt = (Jwt) SecurityContextHolder
-                        .getContext().getAuthentication().getPrincipal();
-
-        String idToken = (String) jwt.getTokenValue();
-
-        String logoutUrl =
-                keycloakLogoutUrl
-                + "?post_logout_redirect_uri="
-                + postLogoutRedirectUri
-                + "/&id_token_hint"
-                + idToken;
-
-        restTemplate.postForObject(logoutUrl, null, String.class);
-
-        SecurityContextHolder.clearContext();
-
-        return "Logged out successfully, refresh token revoked";
-    }
-
-    private void revokeRefreshToken(String refreshToken) {
-        String keycloakRevokeUrl =
-                keycloakProperties.getAuthServerUrl()
-                        + "/realms/"
-                        + keycloakProperties.getRealm()
-                        + "/protocol/openid-connect/revoke";
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("client_id", keycloakProperties.getClientId());
+        body.add("client_secret", keycloakProperties.getClientSecret());
+        body.add("refresh_token", signOutRequest.getRefreshToken());
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setBasicAuth(keycloakProperties.getClientId(),
-                keycloakProperties.getClientSecret()); // Use client credentials for authentication
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED); // Set content type
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        // Create the request body
-        String body = "token=" + refreshToken + "&token_type_hint=refresh_token";
+        HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(body, headers);
 
-        // Create the request entity
-        HttpEntity<String> request = new HttpEntity<>(body, headers);
-
-        // Send the POST request
-        restTemplate.postForEntity(keycloakRevokeUrl, request, String.class);
+        try {
+            restTemplate.exchange(
+                    logoutUrl,
+                    HttpMethod.POST,
+                    requestEntity,
+                    Void.class
+            );
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+                throw new AppException(ErrorCode.AUTHENTICATION_FAILED);
+            } else {
+                throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR);
+            }
+        }
+        return "Log out successfully, See you later!";
     }
 }

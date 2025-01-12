@@ -4,16 +4,17 @@ import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Authentication.SignInReq
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Authentication.SignOutRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Authentication.SignUpRequest;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api.ApiResponse;
-import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Api.ApiResponseBuilder;
 import com.theanh.iamservice.IAM_Service_2.Dtos.Response.Authentication.AuthResponse;
 import com.theanh.iamservice.IAM_Service_2.Facatories.AuthServiceFactory;
 import com.theanh.iamservice.IAM_Service_2.Services.IAuthService;
-import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.AuthenticationImp.KeycloakAuthServiceImp;
+import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.AuthenticationImp.GoogleAuthService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -23,7 +24,18 @@ import java.io.IOException;
 @RequestMapping("/api/auth")
 @Tag(name = "Authentication")
 public class AuthController {
+    private final GoogleAuthService googleAuthService;
     private final AuthServiceFactory authServiceFactory;
+
+    @GetMapping("/home")
+    public ApiResponse<AuthResponse> googleLogin(@AuthenticationPrincipal OAuth2User user) {
+        AuthResponse successful = googleAuthService.googleLogin(user);
+
+        return ApiResponse.of(successful)
+                .success("Welcome back! "
+                        + user.getAttribute("given_name") + " "
+                        + user.getAttribute("family_name"));
+    }
 
     @PostMapping("/sign-in")
     public ApiResponse<AuthResponse> login(@ParameterObject @Valid SignInRequest signInRequest,
@@ -31,9 +43,8 @@ public class AuthController {
         IAuthService authService = authServiceFactory.getAuthService();
         AuthResponse signedIn = authService.login(signInRequest, request);
 
-        return ApiResponseBuilder.buildSuccessResponse(
-                "Sign in successfully, Welcome back!",
-                signedIn);
+        return ApiResponse.of(signedIn)
+                .success("Sign in successfully, Welcome back!");
     }
 
     @PostMapping("/sign-up")
@@ -42,9 +53,8 @@ public class AuthController {
         IAuthService authService = authServiceFactory.getAuthService();
         String signedUp = authService.registration(signUpRequest, request);
 
-        return ApiResponseBuilder.createdSuccessResponse(
-                "Sign up successfully, Welcome to IAM!",
-                signedUp);
+        return ApiResponse.of(signedUp).success(
+                "Sign up successfully, Welcome to IAM!");
     }
 
     @PostMapping("/tokens/refresh")
@@ -53,8 +63,8 @@ public class AuthController {
         IAuthService authService = authServiceFactory.getAuthService();
         AuthResponse result = authService.refreshToken(refreshToken);
 
-        return ApiResponseBuilder
-                .buildSuccessResponse("Token refreshed.", result);
+        return ApiResponse.of(result)
+                .success("Token refreshed.");
 
     }
 
@@ -64,8 +74,7 @@ public class AuthController {
         IAuthService authService = authServiceFactory.getAuthService();
         String loggedOut = authService.logout(signOutRequest, request);
 
-        return ApiResponseBuilder.buildSuccessResponse(
-                "Log out successfully, See you later!",
-                loggedOut);
+        return ApiResponse.of(loggedOut)
+                .success("Logged out.");
     }
 }

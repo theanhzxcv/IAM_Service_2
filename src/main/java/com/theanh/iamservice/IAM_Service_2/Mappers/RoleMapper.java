@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 @Component
 public class RoleMapper {
 
-    public RoleEntity tpRoleEntity(RoleCreationRequest roleCreationRequest) {
+    public RoleEntity toRoleEntity(RoleCreationRequest roleCreationRequest) {
         if (roleCreationRequest == null) {
             throw new IllegalArgumentException("RoleCreationRequest cannot br null");
         }
@@ -42,6 +42,7 @@ public class RoleMapper {
 
         return RoleResponse.builder()
                 .name(roleEntity.getName())
+                .isRoot(roleEntity.isRoot())
                 .isDeleted(roleEntity.isDeleted())
                 .permissions(permissionResponses)
                 .build();

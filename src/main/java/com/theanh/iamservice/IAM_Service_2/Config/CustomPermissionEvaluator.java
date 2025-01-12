@@ -24,14 +24,17 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
 
     @Override
     public boolean hasPermission(Authentication authentication, Object targetDomainObject, Object permission) {
-        if (authentication == null || !(authentication.getPrincipal() instanceof CustomUserDetails customUserDetails)) {
+        if (authentication == null
+                || !(authentication.getPrincipal() instanceof CustomUserDetails customUserDetails)) {
             return false;
         }
 
         String email = customUserDetails.getUsername();
         UserEntity userEntity = getUserEntityByEmail(email);
 
-        if (userEntity == null || !(targetDomainObject instanceof String resource && permission instanceof String scope)) {
+        if (userEntity == null
+                || !(targetDomainObject instanceof String resource
+                && permission instanceof String scope)) {
             return false;
         }
 
