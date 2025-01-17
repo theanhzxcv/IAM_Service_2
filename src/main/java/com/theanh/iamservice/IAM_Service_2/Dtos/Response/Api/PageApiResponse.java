@@ -17,6 +17,7 @@ public class PageApiResponse<T> extends ApiResponse<List<T>> {
     private PageableResponse page = new PageableResponse();
 
     public PageApiResponse(List<T> data, int pageIndex, int pageSize, long total) {
+        super("Profile image uploaded successfully.");
         page.setPageIndex(pageIndex);
         page.setPageSize(pageSize);
         page.setTotal(total);
@@ -24,7 +25,9 @@ public class PageApiResponse<T> extends ApiResponse<List<T>> {
         success();
     }
 
-    public PageApiResponse() {}
+    public PageApiResponse() {
+        super("Profile image uploaded successfully.");
+    }
 
     public static <T> PageApiResponse<T> of(List<T> data, int pageIndex, int pageSize, long total) {
         return new PageApiResponse<>(data, pageIndex, pageSize, total);

@@ -17,7 +17,7 @@ import com.theanh.iamservice.IAM_Service_2.Repositories.UserActivityRepository;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserRepository;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserRoleRepository;
 import com.theanh.iamservice.IAM_Service_2.Services.IAuthService;
-import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.Blacklist.JwtBlacklistService;
+import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.BlacklistImp.JwtBlacklistService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;

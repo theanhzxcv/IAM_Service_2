@@ -38,7 +38,9 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/api/auth/sign-in",
                                 "/api/auth/sign-up",
-                                "/api/profile/password/forgot"
+                                "/api/profile/password/forgot",
+                                "/api/files/public/**",
+                                "/api/files/excel/**"
                         )
                         .permitAll()
                         .anyRequest()

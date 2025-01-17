@@ -22,6 +22,9 @@ public class ApiResponse<T> implements Serializable {
         success = true;
     }
 
+    public ApiResponse(String s) {
+    }
+
     public static <T> ApiResponse<T> of(T res) {
         ApiResponse<T> apiResponse = new ApiResponse<>();
         apiResponse.data = res;

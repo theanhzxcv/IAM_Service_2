@@ -1,32 +1,36 @@
 package com.theanh.iamservice.IAM_Service_2.Jwts;
 
 import com.theanh.iamservice.IAM_Service_2.Entities.UserDetails.CustomUserDetails;
-import com.theanh.iamservice.IAM_Service_2.Exception.ErrorCode;
-import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.Blacklist.JwtBlacklistService;
+import com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.BlacklistImp.JwtBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
     private final JwtBlacklistService jwtBlacklistService;
+    private static final Logger logger = LoggerFactory.getLogger(JwtFilter.class);
 
     @Value("${keycloak.enabled}")
     private boolean isKeycloakEnabled;
@@ -43,7 +47,7 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         final String token = authHeader.substring(7);
-        if (token == null || jwtBlacklistService.isTokenBlacklisted(token)) {
+        if (jwtBlacklistService.isTokenBlacklisted(token)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -79,7 +83,6 @@ public class JwtFilter extends OncePerRequestFilter {
         return email;
     }
 
-
     private boolean isTokenValid(String token, CustomUserDetails customUserDetails) {
         if (isKeycloakEnabled) {
             return jwtUtil.isKeycloakTokenValid(token, customUserDetails);
@@ -98,21 +101,17 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private void logSecurityContextDetails() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) {
-            System.out.println("No authentication details found in SecurityContext.");
-            return;
-        }
+        logger.info("Authentication Details:");
+        logger.info("Principal: {}", authentication.getPrincipal());
+        logger.info("Credentials: {}", authentication.getCredentials());
 
-        System.out.println("Authentication Details:");
-        System.out.println("Principal: " + authentication.getPrincipal());
-        System.out.println("Credentials: " + authentication.getCredentials());
-        System.out.println("Authorities: ");
+        logger.info("Authorities:");
         authentication.getAuthorities().forEach(authority ->
-                System.out.println(" - " + authority.getAuthority())
+                logger.info(" - {}", authority.getAuthority())
         );
-        System.out.println("Details: " + authentication.getDetails());
-        System.out.println("Name: " + authentication.getName());
-        System.out.println("Authenticated: " + authentication.isAuthenticated());
-    }
 
+        logger.info("Details: {}", authentication.getDetails());
+        logger.info("Name: {}", authentication.getName());
+        logger.info("Authenticated: {}", authentication.isAuthenticated());
+    }
 }

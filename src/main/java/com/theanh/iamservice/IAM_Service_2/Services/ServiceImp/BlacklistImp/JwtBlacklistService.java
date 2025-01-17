@@ -1,4 +1,4 @@
-package com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.Blacklist;
+package com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.BlacklistImp;
 
 import com.theanh.iamservice.IAM_Service_2.Services.IJwtBlacklistService;
 import lombok.RequiredArgsConstructor;

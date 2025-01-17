@@ -49,9 +49,10 @@ public class CustomUserDetailsService implements UserDetailsService {
 
                     return rolePermissions.stream()
                             .map(rolePermission -> {
+                                String roleWithPrefix = "ROLE_" + userRole.getRoleName();
                                 PermissionEntity permission = permissionRepository.findByName(rolePermission.getPermissionName())
                                         .orElseThrow(() -> new RuntimeException("Permission not found"));
-                                return new SimpleGrantedAuthority(permission.getResource() + ":" + permission.getScope());
+                                return new SimpleGrantedAuthority(roleWithPrefix + ":" + permission.getResource() + ":" + permission.getScope());
                             });
                 })
                 .collect(Collectors.toSet());

@@ -1,19 +1,16 @@
-info:
-  app:
-    name: IAM Service App
-    description: IAM Service with Spring Boot, PostgresSQL and JWT
+app:
+  services:
+    storage:
+      private: http://localhost:8082/api/files/private
+      public: http://localhost:8082/api/files/public
 
 server:
   port: 8081
 
-#storage-service:
-#  url: http://localhost:8082
-
 keycloak:
-  enabled: false
+  enabled: true
   realm: IAMService
   auth-server-url: http://localhost:8080
-#  resource: storage-service-api
   client:
     id: iam-service-api
     secret: lkbRJLrdzVuIr47DQJfBwmiXzbA6hdkJ
@@ -22,6 +19,10 @@ keycloak:
     password: theanh
 
 spring:
+  servlet:
+    multipart:
+      max-file-size: 2GB
+      max-request-size: 2GB
   datasource:
     url: jdbc:postgresql://127.0.0.1:5432/iam-2
     username: postgres

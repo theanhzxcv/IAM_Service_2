@@ -1,4 +1,4 @@
-package com.theanh.iamservice.IAM_Service_2.Dtos.Request.Management;
+package com.theanh.iamservice.IAM_Service_2.Dtos.Request.File;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserSearchRequest{
+public class FileSearchRequest {
     private String keyword;
     private int pageIndex = 1;
     private int pageSize = 10;

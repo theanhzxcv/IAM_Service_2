@@ -38,6 +38,7 @@ public class UserEntity {
     private String lastname;
     private String address;
     private String phoneNumber;
+    private String avatarID;
     private LocalDate dateOfBirth;
 
     private String secretKey;

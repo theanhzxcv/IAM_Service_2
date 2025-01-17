@@ -55,8 +55,7 @@ public class UserRepositoryImp implements UserRepositoryCustom {
                     " AND (LOWER(u.emailAddress) LIKE :keyword "
                             + " OR LOWER(u.username) LIKE :keyword "
                             + " OR LOWER(u.firstname) LIKE :keyword "
-                            + " OR LOWER(u.lastname) LIKE :keyword "
-                            + " OR LOWER(u.phoneNumber) LIKE :keyword) "
+                            + " OR LOWER(u.lastname) LIKE :keyword) "
             );
             values.put("keyword", keyword);
         }

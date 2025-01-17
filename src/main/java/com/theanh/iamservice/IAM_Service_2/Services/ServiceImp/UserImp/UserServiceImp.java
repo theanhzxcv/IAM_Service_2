@@ -35,7 +35,7 @@ public class UserServiceImp implements IUserService {
     private final static long REFRESH_PASSWORD_TOKEN_EXPIRATION = 1000 * 60 * 5;
 
     private String getCurrentUserEmail() {
-         return SecurityContextHolder.getContext().getAuthentication().getName();
+        return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 
     //run well
