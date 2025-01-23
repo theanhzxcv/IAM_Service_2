@@ -1,5 +1,9 @@
 package com.theanh.iamservice.IAM_Service_2.Jwts;
 
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.KeyUse;
+import com.nimbusds.jose.jwk.RSAKey;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
@@ -7,9 +11,11 @@ import java.nio.file.Paths;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.UUID;
 
 @Component
 public class RSAKeysUtil {
@@ -36,5 +42,13 @@ public class RSAKeysUtil {
         X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         return keyFactory.generatePublic(spec);
+    }
+
+    public JWKSet jwkSet() throws Exception {
+        RSAKey.Builder builder = new RSAKey.Builder((RSAPublicKey) this.getPublicKey())
+                .keyUse(KeyUse.SIGNATURE)
+                .algorithm(JWSAlgorithm.RS256)
+                .keyID(UUID.randomUUID().toString());
+        return new JWKSet(builder.build());
     }
 }

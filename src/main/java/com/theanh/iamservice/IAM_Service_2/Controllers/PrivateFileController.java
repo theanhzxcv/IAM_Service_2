@@ -33,40 +33,35 @@ public class PrivateFileController {
         return ApiResponse.of(privateFileStorageServiceImp.greet()).success("Pass");
     }
 
-    @PostMapping(path = "/multiple-files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<ApiResponse<List<FileResponse>>> uploadMultipleFile(
-            @RequestParam("file") List<MultipartFile> files,
-            @RequestParam("description") String description) {
-        ApiResponse<List<FileResponse>> uploadedFile =
-                privateFileStorageServiceImp.uploadMultipleFiles(files, description);
-
-        return ApiResponse.of(uploadedFile).success("File uploaded");
-    }
-
     @PostMapping(path = "/profile/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<ApiResponse<String>> uploadProfileImage(@RequestParam("image") MultipartFile image) {
-        ApiResponse<String> uploadedImage =
-                privateFileStorageServiceImp.uploadProfileImage(image);
+    public ApiResponse<String> uploadProfileImage(@RequestParam("image") MultipartFile image) {
 
-        return ApiResponse.of(uploadedImage).success("Image uploaded");
+        return privateFileStorageServiceImp.uploadProfileImage(image);
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<ApiResponse<FileResponse>> uploadFile(@RequestParam("file") MultipartFile file,
+    public ApiResponse<FileResponse> uploadFile(@RequestParam("file") MultipartFile file,
                                                              @RequestParam("description") String description) {
-        ApiResponse<FileResponse> uploadedFile = privateFileStorageServiceImp.uploadFile(file, description);
 
-        return ApiResponse.of(uploadedFile).success("File uploaded");
+        return privateFileStorageServiceImp.uploadFile(file, description);
+    }
+
+    @PostMapping(path = "/multiple-files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<List<FileResponse>> uploadMultipleFile(
+            @RequestParam("file") List<MultipartFile> files,
+            @RequestParam("description") String description) {
+
+        return privateFileStorageServiceImp.uploadMultipleFiles(files, description);
     }
 
     @GetMapping("/{fileName}")
-    public ApiResponse<ApiResponse<FileResponse>> getFileByName(@PathVariable("fileName") String fileName) {
+    public ApiResponse<FileResponse> getFileByName(@PathVariable("fileName") String fileName) {
         ApiResponse<FileResponse> fileFound = privateFileStorageServiceImp.getFileByName(fileName);
-
         if (fileFound == null) {
             return ApiResponse.fail(HttpStatus.NOT_FOUND);
         }
-        return ApiResponse.of(fileFound).success(fileName + "'s information");
+
+        return fileFound;
     }
 
     @GetMapping("/search/keyword")
@@ -80,13 +75,11 @@ public class PrivateFileController {
     }
 
     @PutMapping("/{fileName}")
-    public ApiResponse<ApiResponse<FileResponse>> updateFile(
+    public ApiResponse<FileResponse> updateFile(
             @PathVariable("fileName") String fileName,
             @ParameterObject FileUpdateRequest fileUpdateRequest) {
-        ApiResponse<FileResponse> updatedFile =
-                privateFileStorageServiceImp.updateFile(fileName, fileUpdateRequest);
 
-        return ApiResponse.of(updatedFile).success("File updated");
+        return privateFileStorageServiceImp.updateFile(fileName, fileUpdateRequest);
     }
 
     @DeleteMapping("/{fileName}")

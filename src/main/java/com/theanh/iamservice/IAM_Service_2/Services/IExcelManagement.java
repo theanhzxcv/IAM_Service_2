@@ -1,7 +1,6 @@
 package com.theanh.iamservice.IAM_Service_2.Services;
 
-import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Management.UserSearchRequest;
-import com.theanh.iamservice.IAM_Service_2.Entities.UserEntity;
+import com.theanh.iamservice.IAM_Service_2.Dtos.Response.File.FileImportResponse;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.FileNotFoundException;
@@ -10,7 +9,7 @@ import java.util.List;
 
 public interface IExcelManagement {
 
-    void importUserData(MultipartFile file) throws FileNotFoundException;
+    List<FileImportResponse> importUserData(MultipartFile file) throws FileNotFoundException;
 
-    String exportUserData(UserSearchRequest userSearchRequest) throws IOException;
+    String exportUserData(String keyword) throws IOException;
 }

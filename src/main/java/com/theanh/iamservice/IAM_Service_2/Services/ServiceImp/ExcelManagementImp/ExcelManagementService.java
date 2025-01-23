@@ -1,10 +1,14 @@
 package com.theanh.iamservice.IAM_Service_2.Services.ServiceImp.ExcelManagementImp;
 
 import com.theanh.iamservice.IAM_Service_2.Dtos.Request.Management.UserSearchRequest;
+import com.theanh.iamservice.IAM_Service_2.Dtos.Response.File.FileImportResponse;
 import com.theanh.iamservice.IAM_Service_2.Entities.UserEntity;
 import com.theanh.iamservice.IAM_Service_2.Repositories.RepositoryImp.UserRepositoryImp;
 import com.theanh.iamservice.IAM_Service_2.Repositories.UserRepository;
 import com.theanh.iamservice.IAM_Service_2.Services.IExcelManagement;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -19,7 +23,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 @Slf4j
@@ -28,16 +34,19 @@ import java.util.logging.Logger;
 public class ExcelManagementService implements IExcelManagement {
     private static final Logger logger = Logger.getLogger(ExcelManagementService.class.getName());
 
+    @PersistenceContext
+    private EntityManager entityManager;
     private final UserRepositoryImp userRepositoryImp;
     private final UserRepository userRepository;
 
     @Override
-    public void importUserData(MultipartFile file) {
+    public List<FileImportResponse> importUserData(MultipartFile file) {
         if (!isValidExcelFile(file)) {
             throw new RuntimeException("Invalid file format. Please upload a valid Excel file.");
         }
 
         String fileName = file.getOriginalFilename();
+        List<FileImportResponse> fileImportResponses = new ArrayList<>();
         List<String> errorMessages = new ArrayList<>();
 
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
@@ -51,58 +60,59 @@ public class ExcelManagementService implements IExcelManagement {
                     continue;
                 }
 
-                String id = validateCell(row, 0,
-                        "ID", errorMessages, rowIndex, false);
-                String username = validateCell(row, 1,
-                        "Username", errorMessages, rowIndex, false);
-                String fullName = validateCell(row, 2,
-                        "Full Name", errorMessages, rowIndex, false);
-                String dateOfBirth = validateCell(row, 3,
-                        "Date of Birth", errorMessages, rowIndex, false);
-                String street = validateCell(row, 4,
-                        "Street", errorMessages, rowIndex, true);
-                String ward = validateCell(row, 5,
-                        "Ward", errorMessages, rowIndex, true);
-                String district = validateCell(row, 6,
-                        "District", errorMessages, rowIndex, true);
-                String province = validateCell(row, 7,
-                        "Province", errorMessages, rowIndex, true);
+                String no = validateCell(row, 0, "No", errorMessages, rowIndex, false);
+                String username = validateCell(row, 1, "Username", errorMessages, rowIndex, false);
+                String fullName = validateCell(row, 2, "Full Name", errorMessages, rowIndex, false);
+                String dateOfBirth = validateCell(row, 3, "Date of Birth", errorMessages, rowIndex, false);
+                String street = validateCell(row, 4, "Street", errorMessages, rowIndex, true);
+                String ward = validateCell(row, 5, "Ward", errorMessages, rowIndex, true);
+                String district = validateCell(row, 6, "District", errorMessages, rowIndex, true);
+                String province = validateCell(row, 7, "Province", errorMessages, rowIndex, true);
                 String experience = validateExperienceCell(row, 8, errorMessages, rowIndex);
 
                 if (!dateOfBirth.isEmpty()) {
                     try {
                         LocalDate.parse(dateOfBirth, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                     } catch (DateTimeParseException e) {
-                        errorMessages.add("Row " + (rowIndex + 1) + ": Invalid date format for Date of Birth. Expected format: yyyy-MM-dd.");
+                        errorMessages.add("Row " + (rowIndex + 1)
+                                + ": Invalid date format for Date of Birth. Expected format: yyyy-MM-dd.");
                     }
                 }
 
-                logger.info("Row " + (rowIndex) + ": Parsed data -> ID: " + id + ", Username: " + username
+                logger.info("Row " + (rowIndex) + ": Parsed data -> No. " + no + ", Username: " + username
                         + ", Full Name: " + fullName + ", Date of Birth: " + dateOfBirth + ", Street: " + street
                         + ", Ward: " + ward + ", District: " + district + ", Province: " + province
                         + ", Experience: " + experience);
-            }
 
-            if (!errorMessages.isEmpty()) {
-                errorMessages.forEach(logger::severe);
-                throw new RuntimeException("Validation failed. See logs for details.");
+                if (errorMessages.isEmpty()) {
+                    fileImportResponses.add(response(no, username, fullName, dateOfBirth,
+                            street, ward, district, province, experience));
+                }
             }
 
         } catch (IOException e) {
             logger.severe("Import data from file '" + fileName + "' failed.");
             throw new RuntimeException(e);
         }
+
+        if (!errorMessages.isEmpty()) {
+            errorMessages.forEach(logger::severe);
+            throw new RuntimeException("Validation failed. See logs for details.");
+        }
+
+        return fileImportResponses;
     }
 
     @Override
-    public String exportUserData(UserSearchRequest userSearchRequest) throws IOException {
+    public String exportUserData(String keyword) throws IOException {
 //        List<UserEntity> userEntities = userRepository.findAll();
-        List<UserEntity> userEntities = search(userSearchRequest);
+        List<UserEntity> userEntities = search(keyword);
+
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("UserData");
 
             Row headerRow = sheet.createRow(0);
-            String[] headers = {"No.", "Username", "Full Name", "Email Address", "Date of Birth", "Address"};
+            String[] headers = {"No", "Username", "Full Name", "Email Address"};
 
             Font font = workbook.createFont();
             font.setFontName("Times New Roman");
@@ -131,8 +141,6 @@ public class ExcelManagementService implements IExcelManagement {
                 row.createCell(2).setCellValue(userEntity.getFirstname() + " "
                         + userEntity.getLastname());
                 row.createCell(3).setCellValue(userEntity.getEmailAddress());
-//                row.createCell(4).setCellValue(userEntity.getDateOfBirth());
-//                row.createCell(5).setCellValue(userEntity.getAddress());
             }
 
             for (int i = 0; i <= headers.length; i++) {
@@ -163,8 +171,49 @@ public class ExcelManagementService implements IExcelManagement {
         }
     }
 
-    private List<UserEntity> search(UserSearchRequest userSearchRequest) {
-        return userRepositoryImp.search(userSearchRequest);
+    private List<UserEntity> search(String keyword) {
+        Map<String, Object> values = new HashMap<>();
+        String sql = "SELECT u FROM UserEntity u "
+                + createWhereQuery(keyword, values);
+        Query query = entityManager.createQuery(sql, UserEntity.class);
+
+        values.forEach(query::setParameter);
+
+        return query.getResultList();
+    }
+
+    private String createWhereQuery(String keyword, Map<String, Object> values) {
+        StringBuilder sql = new StringBuilder();
+        sql.append("where u.isDeleted = false");
+
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            keyword = "%" + keyword.trim().toLowerCase() + "%";
+
+            sql.append(
+                    " AND (LOWER(u.emailAddress) LIKE :keyword "
+                            + " OR LOWER(u.username) LIKE :keyword "
+                            + " OR LOWER(u.firstname) LIKE :keyword "
+                            + " OR LOWER(u.lastname) LIKE :keyword) "
+            );
+            values.put("keyword", keyword);
+        }
+        return sql.toString();
+    }
+
+    private FileImportResponse response(String no, String username, String fullName,
+                                        String datOfBirth, String street, String ward,
+                                        String district, String province, String experience) {
+        return FileImportResponse.builder()
+                .no(no)
+                .username(username)
+                .fullName(fullName)
+                .dateOfBirth(datOfBirth)
+                .street(street)
+                .ward(ward)
+                .district(district)
+                .province(province)
+                .experience(experience)
+                .build();
     }
 
     private String validateCell(Row row, int cellIndex, String attributeName,
